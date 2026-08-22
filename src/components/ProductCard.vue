@@ -202,4 +202,18 @@ const cart = useCartStore()
   padding: 11px 16px;
   font-size: 13.5px;
 }
+
+@media (max-width: 760px) {
+  .card-body {
+    padding: 14px 13px 16px;
+  }
+  .add-btn {
+    padding: 10px 10px;
+    font-size: 11.5px;
+    letter-spacing: 0;
+  }
+  .add-btn svg {
+    display: none;
+  }
+}
 </style>
