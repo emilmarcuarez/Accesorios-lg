@@ -216,7 +216,9 @@ const payments = ['Pago Movil', 'Transferencias','Zelle', 'USDT', 'Dolares', 'Eu
 
 .payments {
   display: flex;
+  flex-wrap: wrap;
   gap: 8px;
+  justify-content: flex-end;
 }
 
 .payment {
@@ -241,6 +243,15 @@ const payments = ['Pago Movil', 'Transferencias','Zelle', 'USDT', 'Dolares', 'Eu
 @media (max-width: 600px) {
   .footer-grid {
     grid-template-columns: repeat(2, 1fr);
+  }
+  .footer-bottom {
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    gap: 14px;
+  }
+  .payments {
+    justify-content: center;
   }
 }
 </style>
