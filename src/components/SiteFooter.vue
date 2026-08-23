@@ -16,8 +16,8 @@ const infoLinks = [
   { label: 'Medios de pago', to: '/nosotros' },
   { label: 'Preguntas frecuentes', to: '/nosotros' },
   { label: 'Devoluciones', to: '/nosotros' },
-  { label: 'Términos y condiciones', to: '/nosotros' },
-  { label: 'Privacidad', to: '/nosotros' },
+  { label: 'Términos y condiciones', to: '/terminos' },
+  { label: 'Política de privacidad', to: '/privacidad' },
 ]
 
 const helpLinks = [
