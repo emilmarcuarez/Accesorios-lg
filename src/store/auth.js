@@ -98,5 +98,19 @@ export const useAuthStore = defineStore('auth', {
         .eq('id', this.user.id)
       if (!error) this.fetchProfile()
     },
+    async resetPassword(email) {
+      if (!supabase) return { error: 'Supabase no configurado' }
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: `${window.location.origin}/reset-password`,
+      })
+      if (error) return { error: error.message }
+      return { ok: true }
+    },
+    async updatePassword(password) {
+      if (!supabase) return { error: 'Supabase no configurado' }
+      const { error } = await supabase.auth.updateUser({ password })
+      if (error) return { error: error.message }
+      return { ok: true }
+    },
   },
 })

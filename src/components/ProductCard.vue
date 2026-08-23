@@ -1,5 +1,6 @@
 <script setup>
 import { useCartStore } from '@/store/cart'
+import { useFavoritesStore } from '@/store/favorites'
 import AppIcon from '@/components/AppIcon.vue'
 import { formatPrice } from '@/utils/format'
 
@@ -8,6 +9,7 @@ const props = defineProps({
 })
 
 const cart = useCartStore()
+const favorites = useFavoritesStore()
 </script>
 
 <template>
@@ -21,8 +23,13 @@ const cart = useCartStore()
       />
       <span v-if="product.discount" class="tag tag-discount">-{{ product.discount }}%</span>
       <span v-if="product.isNew" class="tag tag-new">Nuevo</span>
-      <button class="fav" aria-label="Favorito" @click.prevent>
-        <AppIcon name="heart" :size="18" />
+      <button
+        class="fav"
+        :class="{ active: favorites.isFav(product.id) }"
+        aria-label="Favorito"
+        @click.prevent="favorites.toggle(product.id)"
+      >
+        <AppIcon name="heart" :size="18" :filled="favorites.isFav(product.id)" />
       </button>
     </router-link>
 
@@ -128,6 +135,11 @@ const cart = useCartStore()
 .fav:hover {
   color: var(--rose-500);
   transform: scale(1.1);
+}
+
+.fav.active {
+  color: var(--rose-600);
+  background: var(--rose-100);
 }
 
 .card-body {

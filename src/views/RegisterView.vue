@@ -4,6 +4,7 @@ import { useRouter } from 'vue-router'
 import AppIcon from '@/components/AppIcon.vue'
 import { useAuthStore } from '@/store/auth'
 import { STORE } from '@/config'
+import PasswordInput from '@/components/PasswordInput.vue'
 
 const auth = useAuthStore()
 const router = useRouter()
@@ -74,10 +75,7 @@ async function submit() {
             <input v-model="form.email" type="email" placeholder="tu@correo.com" required />
           </label>
 
-          <label class="field">
-            <span>Contraseña</span>
-            <input v-model="form.password" type="password" placeholder="Mínimo 8 caracteres" required minlength="8" />
-          </label>
+          <PasswordInput v-model="form.password" label="Contraseña" placeholder="Mínimo 8 caracteres" />
 
           <div class="prefs">
             <p class="prefs-title">Preferencias</p>

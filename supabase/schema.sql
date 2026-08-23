@@ -248,3 +248,24 @@ create policy "carts_update_own" on public.carts
 drop policy if exists "carts_delete_own" on public.carts;
 create policy "carts_delete_own" on public.carts
   for delete using (auth.uid() = user_id);
+
+-- ------------------------------------------------------------
+-- 7. FAVORITOS POR USUARIO
+-- ------------------------------------------------------------
+create table if not exists public.favorites (
+  user_id uuid primary key references public.profiles(id) on delete cascade,
+  product_ids jsonb not null default '[]',
+  updated_at timestamptz not null default now()
+);
+
+alter table public.favorites enable row level security;
+
+drop policy if exists "favorites_select_own" on public.favorites;
+create policy "favorites_select_own" on public.favorites
+  for select using (auth.uid() = user_id);
+drop policy if exists "favorites_insert_own" on public.favorites;
+create policy "favorites_insert_own" on public.favorites
+  for insert with check (auth.uid() = user_id);
+drop policy if exists "favorites_update_own" on public.favorites;
+create policy "favorites_update_own" on public.favorites
+  for update using (auth.uid() = user_id) with check (auth.uid() = user_id);

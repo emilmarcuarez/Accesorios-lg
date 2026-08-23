@@ -52,10 +52,26 @@ const routes = [
     meta: { guestOnly: true },
   },
   {
+    path: '/recuperar',
+    name: 'forgot',
+    component: () => import('@/views/ForgotView.vue'),
+    meta: { guestOnly: true },
+  },
+  {
+    path: '/reset-password',
+    name: 'reset',
+    component: () => import('@/views/ResetView.vue'),
+  },
+  {
     path: '/cuenta',
     name: 'account',
     component: () => import('@/views/AccountView.vue'),
     meta: { requiresAuth: true },
+  },
+  {
+    path: '/favoritos',
+    name: 'favorites',
+    component: () => import('@/views/FavoritesView.vue'),
   },
   {
     path: '/admin-login',

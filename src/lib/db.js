@@ -92,6 +92,19 @@ export async function clearSavedCart(userId) {
   return supabase.from('carts').delete().eq('user_id', userId)
 }
 
+export async function getFavorites(userId) {
+  if (!supabase) return { data: null, error: 'Supabase no configurado' }
+  return supabase.from('favorites').select('product_ids').eq('user_id', userId).maybeSingle()
+}
+
+export async function setFavorites(userId, productIds) {
+  if (!supabase) return { error: 'Supabase no configurado' }
+  return supabase.from('favorites').upsert(
+    { user_id: userId, product_ids: productIds, updated_at: new Date().toISOString() },
+    { onConflict: 'user_id' },
+  )
+}
+
 export async function updateOrderStatus(id, status) {
   if (!supabase) return { error: 'Supabase no configurado' }
   return supabase.from('orders').update({ status }).eq('id', id).select().single()

@@ -2,11 +2,15 @@
 import { ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { useCartStore } from '@/store/cart'
+import { useAuthStore } from '@/store/auth'
+import { useFavoritesStore } from '@/store/favorites'
 import AppIcon from '@/components/AppIcon.vue'
 import { STORE } from '@/config'
 import { formatPrice } from '@/utils/format'
 
 const cart = useCartStore()
+const auth = useAuthStore()
+const favorites = useFavoritesStore()
 const router = useRouter()
 const menuOpen = ref(false)
 const query = ref('')
@@ -31,6 +35,14 @@ function submitSearch() {
 function go(route, event) {
   router.push(route)
   menuOpen.value = false
+}
+
+function goAccount() {
+  router.push(auth.isAuthenticated ? '/cuenta' : '/login')
+}
+
+function goFavorites() {
+  router.push('/favoritos')
 }
 </script>
 
@@ -68,13 +80,14 @@ function go(route, event) {
         </form>
 
         <div class="actions">
-          <button class="action-btn" aria-label="Cuenta">
+          <button class="action-btn" aria-label="Cuenta" @click="goAccount">
             <AppIcon name="user" :size="20" />
             <span class="action-label">Cuenta</span>
           </button>
-          <button class="action-btn" aria-label="Favoritos">
-            <AppIcon name="heart" :size="20" />
+          <button class="action-btn" aria-label="Favoritos" @click="goFavorites">
+            <AppIcon name="heart" :size="20" :filled="false" />
             <span class="action-label">Favoritos</span>
+            <span v-if="favorites.count" class="badge">{{ favorites.count }}</span>
           </button>
           <button class="action-btn" aria-label="Carrito" @click="cart.toggleDrawer(true)">
             <AppIcon name="bag" :size="20" />
