@@ -1,6 +1,9 @@
 import { defineStore } from 'pinia'
 import { STORE } from '@/config'
 import { formatPrice, formatNumber } from '@/utils/format'
+import { supabase } from '@/lib/supabase'
+import { useAuthStore } from '@/store/auth'
+import { insertOrder } from '@/lib/db'
 
 export const useCartStore = defineStore('cart', {
   state: () => ({
@@ -14,7 +17,7 @@ export const useCartStore = defineStore('cart', {
     formattedSubtotal: (state) => formatPrice(state.subtotal),
   },
   actions: {
-    add(product) {
+    async add(product) {
       const existing = this.items.find((item) => item.id === product.id)
       if (existing) {
         existing.qty += 1
@@ -22,24 +25,57 @@ export const useCartStore = defineStore('cart', {
         this.items.push({ ...product, qty: 1 })
       }
       this.drawerOpen = true
+      this.save()
     },
-    increase(id) {
+    async increase(id) {
       const item = this.items.find((item) => item.id === id)
       if (item) item.qty += 1
+      this.save()
     },
-    decrease(id) {
+    async decrease(id) {
       const item = this.items.find((item) => item.id === id)
       if (!item) return
       item.qty -= 1
       if (item.qty <= 0) this.remove(id)
+      else this.save()
     },
-    remove(id) {
+    async remove(id) {
       this.items = this.items.filter((item) => item.id !== id)
+      this.save()
     },
     toggleDrawer(value) {
       this.drawerOpen = value ?? !this.drawerOpen
     },
-    clear() {
+    async clear() {
+      this.items = []
+      this.save()
+    },
+    async save() {
+      const auth = useAuthStore()
+      if (!supabase || !auth.isAuthenticated || !auth.profile?.save_carts) return
+      await supabase.from('carts').upsert(
+        {
+          user_id: auth.user.id,
+          items: this.items,
+          updated_at: new Date().toISOString(),
+        },
+        { onConflict: 'user_id' },
+      )
+    },
+    async loadSaved() {
+      const auth = useAuthStore()
+      if (!supabase || !auth.isAuthenticated || !auth.profile?.save_carts) return
+      const { data } = await supabase
+        .from('carts')
+        .select('items')
+        .eq('user_id', auth.user.id)
+        .maybeSingle()
+      if (data?.items) this.items = data.items
+    },
+    async clearSaved() {
+      const auth = useAuthStore()
+      if (!supabase || !auth.isAuthenticated) return
+      await supabase.from('carts').delete().eq('user_id', auth.user.id)
       this.items = []
     },
     buildMessage() {
@@ -69,7 +105,20 @@ export const useCartStore = defineStore('cart', {
     whatsappUrl() {
       return `https://wa.me/${STORE.whatsapp}?text=${encodeURIComponent(this.buildMessage())}`
     },
-    checkout() {
+    async checkout() {
+      const auth = useAuthStore()
+      if (supabase && auth.isAuthenticated) {
+        await insertOrder(
+          {
+            user_id: auth.user.id,
+            customer_name: auth.fullName,
+            customer_phone: auth.profile?.phone,
+            subtotal: this.subtotal,
+            status: 'pendiente',
+          },
+          this.items,
+        )
+      }
       window.open(this.whatsappUrl(), '_blank')
     },
     receiptHtml() {

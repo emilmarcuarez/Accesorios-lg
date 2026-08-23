@@ -56,8 +56,22 @@ export const useAuthStore = defineStore('auth', {
         this.loading = false
         return { error: error.message }
       }
+      if (data.user) {
+        await supabase.from('profiles').upsert(
+          {
+            id: data.user.id,
+            name,
+            lastname,
+            phone,
+            save_carts: saveCarts,
+            notifications: notifications,
+          },
+          { onConflict: 'id' },
+        )
+      }
       this.loading = false
       this.user = data.user
+      if (this.user) await this.fetchProfile()
       return { user: data.user }
     },
     async signIn(email, password) {
@@ -69,13 +83,6 @@ export const useAuthStore = defineStore('auth', {
       this.user = data.user
       await this.fetchProfile()
       return { user: data.user }
-    },
-    async signInWithGoogle() {
-      if (!supabase) return
-      await supabase.auth.signInWithOAuth({
-        provider: 'google',
-        options: { redirectTo: window.location.origin },
-      })
     },
     async signOut() {
       if (!supabase) return

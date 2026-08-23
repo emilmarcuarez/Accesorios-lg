@@ -1,9 +1,9 @@
--- ============================================================
+﻿-- ============================================================
 -- Detallitos Accesorios - Esquema Supabase (PostgreSQL)
 -- Ejecutar en el SQL Editor de tu proyecto Supabase.
 -- ============================================================
 
--- Extensión para UUID
+-- ExtensiÃ³n para UUID
 create extension if not exists "uuid-ossp";
 
 -- ------------------------------------------------------------
@@ -21,7 +21,7 @@ create table if not exists public.profiles (
 );
 
 -- ------------------------------------------------------------
--- 2. FUNCIÓN DE ROL ADMIN
+-- 2. FUNCIÃ“N DE ROL ADMIN
 -- ------------------------------------------------------------
 create or replace function public.is_admin()
 returns boolean
@@ -97,7 +97,7 @@ create table if not exists public.order_items (
 );
 
 -- ------------------------------------------------------------
--- 3. TRIGGER: crear perfil automáticamente al registrarse
+-- 3. TRIGGER: crear perfil automÃ¡ticamente al registrarse
 -- ------------------------------------------------------------
 create or replace function public.handle_new_user()
 returns trigger
@@ -138,46 +138,61 @@ alter table public.orders enable row level security;
 alter table public.order_items enable row level security;
 
 -- PROFILES
+drop policy if exists "profiles_select_own" on public.profiles;
 create policy "profiles_select_own" on public.profiles
   for select using (auth.uid() = id or public.is_admin());
+drop policy if exists "profiles_update_own" on public.profiles;
 create policy "profiles_update_own" on public.profiles
   for update using (auth.uid() = id) with check (auth.uid() = id);
+drop policy if exists "profiles_insert_trigger" on public.profiles;
 create policy "profiles_insert_trigger" on public.profiles
   for insert with check (auth.uid() = id);
 
 -- CATEGORIES
+drop policy if exists "categories_read_all" on public.categories;
 create policy "categories_read_all" on public.categories
   for select using (true);
+drop policy if exists "categories_write_admin" on public.categories;
 create policy "categories_write_admin" on public.categories
   for all using (public.is_admin()) with check (public.is_admin());
 
 -- PRODUCTS
+drop policy if exists "products_read_all" on public.products;
 create policy "products_read_all" on public.products
   for select using (true);
+drop policy if exists "products_write_admin" on public.products;
 create policy "products_write_admin" on public.products
   for all using (public.is_admin()) with check (public.is_admin());
 
 -- COUPONS
+drop policy if exists "coupons_read_auth" on public.coupons;
 create policy "coupons_read_auth" on public.coupons
   for select using (auth.role() = 'authenticated');
+drop policy if exists "coupons_write_admin" on public.coupons;
 create policy "coupons_write_admin" on public.coupons
   for all using (public.is_admin()) with check (public.is_admin());
 
 -- PROMOTIONS
+drop policy if exists "promotions_read_all" on public.promotions;
 create policy "promotions_read_all" on public.promotions
   for select using (true);
+drop policy if exists "promotions_write_admin" on public.promotions;
 create policy "promotions_write_admin" on public.promotions
   for all using (public.is_admin()) with check (public.is_admin());
 
 -- ORDERS
+drop policy if exists "orders_insert_owner" on public.orders;
 create policy "orders_insert_owner" on public.orders
   for insert with check (auth.uid() = user_id);
+drop policy if exists "orders_select_owner_or_admin" on public.orders;
 create policy "orders_select_owner_or_admin" on public.orders
   for select using (auth.uid() = user_id or public.is_admin());
+drop policy if exists "orders_update_admin" on public.orders;
 create policy "orders_update_admin" on public.orders
   for update using (public.is_admin()) with check (public.is_admin());
 
 -- ORDER ITEMS
+drop policy if exists "items_insert_owner" on public.order_items;
 create policy "items_insert_owner" on public.order_items
   for insert with check (
     exists (
@@ -185,6 +200,7 @@ create policy "items_insert_owner" on public.order_items
       where orders.id = order_id and orders.user_id = auth.uid()
     )
   );
+drop policy if exists "items_select_owner_or_admin" on public.order_items;
 create policy "items_select_owner_or_admin" on public.order_items
   for select using (public.is_admin() or
     exists (
@@ -208,3 +224,27 @@ on conflict (slug) do nothing;
 insert into public.coupons (code, discount, active) values
   ('BIENVENIDA', 10, true)
 on conflict (code) do nothing;
+
+-- ------------------------------------------------------------
+-- 6. CARRITOS GUARDADOS POR USUARIO
+-- ------------------------------------------------------------
+create table if not exists public.carts (
+  user_id uuid primary key references public.profiles(id) on delete cascade,
+  items jsonb not null default '[]',
+  updated_at timestamptz not null default now()
+);
+
+alter table public.carts enable row level security;
+
+drop policy if exists "carts_select_own" on public.carts;
+create policy "carts_select_own" on public.carts
+  for select using (auth.uid() = user_id);
+drop policy if exists "carts_insert_own" on public.carts;
+create policy "carts_insert_own" on public.carts
+  for insert with check (auth.uid() = user_id);
+drop policy if exists "carts_update_own" on public.carts;
+create policy "carts_update_own" on public.carts
+  for update using (auth.uid() = user_id) with check (auth.uid() = user_id);
+drop policy if exists "carts_delete_own" on public.carts;
+create policy "carts_delete_own" on public.carts
+  for delete using (auth.uid() = user_id);

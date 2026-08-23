@@ -29,8 +29,7 @@ import { STORE } from '@/config'
         <h2>2. Cuentas de usuario</h2>
         <p>
           Para comprar o guardar tu carrito puedes crear una cuenta. Eres responsable de mantener la
-          confidencialidad de tus datos de acceso y de la información que ingreses. Puedes registrarte
-          con correo y contraseña o iniciar sesión con tu cuenta de Google.
+          confidencialidad de tus datos de acceso y de la información que ingreses.
         </p>
 
         <h2>3. Productos y disponibilidad</h2>

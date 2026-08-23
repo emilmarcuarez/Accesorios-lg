@@ -47,34 +47,28 @@ import { STORE } from '@/config'
           información del carrito voluntariamente para concretar la compra.
         </p>
 
-        <h2>4. Acceso con Google</h2>
-        <p>
-          Si inicias sesión con Google, recibimos de Google los datos básicos de tu perfil (nombre
-          y correo) que autorices. No tenemos acceso a tu contraseña de Google.
-        </p>
-
-        <h2>5. Cookies y seguridad</h2>
+        <h2>4. Cookies y seguridad</h2>
         <p>
           Usamos tecnologías de almacenamiento local y cookies propias de la aplicación para
           recordar tu sesión y preferencias. Protegemos tus datos con controles de acceso y medidas
           de seguridad razonables.
         </p>
 
-        <h2>6. Con quién compartimos tu información</h2>
+        <h2>5. Con quién compartimos tu información</h2>
         <p>
           No vendemos ni alquilamos tus datos personales. Solo compartimos información cuando es
           necesario para operar el servicio o cumplir la ley (por ejemplo, proveedores de pago,
           envío o de infraestructura tecnológica).
         </p>
 
-        <h2>7. Tus derechos</h2>
+        <h2>6. Tus derechos</h2>
         <p>
           Puedes solicitar acceso, corrección o eliminación de tus datos personales en cualquier
           momento escribiéndonos a <strong>{{ STORE.email }}</strong> o por WhatsApp al
           <strong>+{{ STORE.whatsapp }}</strong>.
         </p>
 
-        <h2>8. Contacto</h2>
+        <h2>7. Contacto</h2>
         <p>
           Ante cualquier duda sobre esta política, contáctanos:
         </p>

@@ -1,25 +1,61 @@
 <script setup>
-import { ref } from 'vue'
+import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import AppIcon from '@/components/AppIcon.vue'
 import { useAuthStore } from '@/store/auth'
+import { useCartStore } from '@/store/cart'
+import { listMyOrders } from '@/lib/db'
+import { formatPrice } from '@/utils/format'
 
 const auth = useAuthStore()
+const cart = useCartStore()
 const router = useRouter()
 
-const form = ref({
-  name: auth.profile?.name || '',
-  lastname: auth.profile?.lastname || '',
-  phone: auth.profile?.phone || '',
-  saveCarts: auth.profile?.save_carts ?? true,
-  notifications: auth.profile?.notifications ?? true,
-})
+const orders = ref([])
 const saved = ref(false)
+
+const form = ref({
+  name: '',
+  lastname: '',
+  phone: '',
+  saveCarts: true,
+  notifications: true,
+})
+
+onMounted(async () => {
+  await auth.fetchProfile()
+  syncForm()
+  if (auth.isAuthenticated) {
+    await cart.loadSaved()
+    const res = await listMyOrders(auth.user.id)
+    orders.value = res.data || []
+  }
+})
+
+function syncForm() {
+  form.value = {
+    name: auth.profile?.name || '',
+    lastname: auth.profile?.lastname || '',
+    phone: auth.profile?.phone || '',
+    saveCarts: auth.profile?.save_carts ?? true,
+    notifications: auth.profile?.notifications ?? true,
+  }
+}
 
 async function save() {
   saved.value = false
   await auth.updateProfile(form.value)
   saved.value = true
+}
+
+async function deleteCart() {
+  if (!confirm('¿Eliminar el carrito guardado?')) return
+  await cart.clearSaved()
+}
+
+function statusLabel(status) {
+  const map = { pendiente: 'Pendiente', pagado: 'Pagado', enviado: 'Enviado', entregado: 'Entregado', cancelado: 'Cancelado' }
+  return map[status] || status
 }
 
 async function logout() {
@@ -33,20 +69,12 @@ async function logout() {
     <section class="account-hero">
       <div class="container">
         <span class="eyebrow">Mi cuenta</span>
-        <h1 class="account-title">Hola, {{ auth.fullName || 'Detallita' }}</h1>
+        <h1 class="account-title">Hola, {{ auth.fullName || auth.user?.email }}</h1>
         <p class="account-sub">{{ auth.user?.email }}</p>
       </div>
     </section>
 
     <section class="container account-body">
-      <div class="account-info">
-        <p class="account-label">Correo</p>
-        <p class="account-value">{{ auth.user?.email }}</p>
-        <p class="account-label">Miembro</p>
-        <p class="account-value">Registrada</p>
-        <button class="btn btn-ghost" @click="saved = false" style="margin-top: 8px"></button>
-      </div>
-
       <div class="account-form">
         <h2 class="form-title">Mis datos</h2>
         <label class="field">
@@ -80,6 +108,43 @@ async function logout() {
             <AppIcon name="close" :size="16" />
             Cerrar sesión
           </button>
+        </div>
+      </div>
+
+      <div class="account-col">
+        <div class="account-form">
+          <h2 class="form-title">Mis carritos</h2>
+          <div v-if="cart.items.length" class="cart-summary">
+            <p class="cart-line">
+              Tienes <strong>{{ cart.count }}</strong> producto(s) en tu carrito
+              <span class="cart-total">{{ cart.formattedSubtotal }}</span>
+            </p>
+            <div class="mini-actions">
+              <router-link to="/tienda" class="btn btn-ghost">Ver productos</router-link>
+              <button class="btn btn-outline" @click="deleteCart">Eliminar carrito guardado</button>
+            </div>
+          </div>
+          <p v-else class="empty-note">No tienes un carrito guardado.</p>
+        </div>
+
+        <div class="account-form">
+          <h2 class="form-title">Mis compras</h2>
+          <div v-if="orders.length" class="orders-list">
+            <div v-for="order in orders" :key="order.id" class="order-item">
+              <div class="order-head">
+                <strong>#{{ String(order.id).padStart(4, '0') }}</strong>
+                <span class="status" :class="'st-' + order.status">{{ statusLabel(order.status) }}</span>
+              </div>
+              <p class="order-date">{{ new Date(order.created_at).toLocaleDateString('es-VE') }}</p>
+              <ul class="order-items">
+                <li v-for="item in order.order_items" :key="item.id">
+                  <span>{{ item.qty }}x</span> {{ item.name || 'Producto' }}
+                </li>
+              </ul>
+              <p class="order-total">Total: {{ formatPrice(order.subtotal) }}</p>
+            </div>
+          </div>
+          <p v-else class="empty-note">Aún no tienes compras registradas.</p>
         </div>
       </div>
     </section>
@@ -116,37 +181,23 @@ async function logout() {
 
 .account-body {
   display: grid;
-  grid-template-columns: 0.8fr 1.2fr;
-  gap: 40px;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
   padding-top: 50px;
   padding-bottom: 60px;
 }
 
-.account-info {
-  background: var(--white);
-  border: 1px solid var(--line);
-  border-radius: var(--radius-lg);
-  padding: 30px 30px;
-}
-
-.account-label {
-  font-size: 12px;
-  text-transform: uppercase;
-  letter-spacing: 0.1em;
-  color: var(--ink-400);
-  margin-top: 14px;
-}
-
-.account-value {
-  font-weight: 600;
-  color: var(--ink-900);
+.account-col {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
 }
 
 .account-form {
   background: var(--white);
   border: 1px solid var(--line);
   border-radius: var(--radius-lg);
-  padding: 32px;
+  padding: 30px;
 }
 
 .form-title {
@@ -212,6 +263,98 @@ async function logout() {
   gap: 12px;
   margin-top: 10px;
   flex-wrap: wrap;
+}
+
+.cart-summary {
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  padding: 18px;
+  background: var(--rose-50);
+}
+
+.cart-line {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 14px;
+  color: var(--ink-700);
+  margin-bottom: 14px;
+  gap: 10px;
+}
+
+.cart-total {
+  font-weight: 700;
+  color: var(--rose-600);
+}
+
+.mini-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.orders-list {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.order-item {
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  padding: 16px 18px;
+}
+
+.order-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 4px;
+}
+
+.status {
+  padding: 4px 12px;
+  border-radius: var(--radius-full);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.st-pendiente { background: #fff3e0; color: #b26a00; }
+.st-pagado { background: #e3f6e9; color: #1f8a4c; }
+.st-enviado { background: #e3edfb; color: #1f5fbf; }
+.st-entregado { background: #f0e6fb; color: #6a3fb5; }
+.st-cancelado { background: #fbe9e9; color: #b04b4b; }
+
+.order-date {
+  font-size: 12px;
+  color: var(--ink-400);
+  margin-bottom: 8px;
+}
+
+.order-items {
+  list-style: none;
+  margin-bottom: 8px;
+}
+
+.order-items li {
+  font-size: 13px;
+  color: var(--ink-500);
+  margin-bottom: 3px;
+}
+
+.order-items span {
+  font-weight: 600;
+  color: var(--ink-700);
+}
+
+.order-total {
+  font-weight: 700;
+  color: var(--ink-900);
+}
+
+.empty-note {
+  color: var(--ink-400);
+  font-size: 14px;
 }
 
 @media (max-width: 800px) {

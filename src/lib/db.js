@@ -73,6 +73,25 @@ export async function listOrders() {
     .order('created_at', { ascending: false })
 }
 
+export async function listMyOrders(userId) {
+  if (!supabase) return { data: [], error: 'Supabase no configurado' }
+  return supabase
+    .from('orders')
+    .select('*, order_items(*)')
+    .eq('user_id', userId)
+    .order('created_at', { ascending: false })
+}
+
+export async function getSavedCart(userId) {
+  if (!supabase) return { data: null, error: 'Supabase no configurado' }
+  return supabase.from('carts').select('items').eq('user_id', userId).maybeSingle()
+}
+
+export async function clearSavedCart(userId) {
+  if (!supabase) return { error: 'Supabase no configurado' }
+  return supabase.from('carts').delete().eq('user_id', userId)
+}
+
 export async function updateOrderStatus(id, status) {
   if (!supabase) return { error: 'Supabase no configurado' }
   return supabase.from('orders').update({ status }).eq('id', id).select().single()
