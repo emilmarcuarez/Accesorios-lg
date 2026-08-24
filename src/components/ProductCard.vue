@@ -38,18 +38,6 @@ const favorites = useFavoritesStore()
       <router-link :to="`/producto/${product.id}`" class="card-name">
         {{ product.name }}
       </router-link>
-      <div class="rating">
-        <div class="stars">
-          <AppIcon
-            v-for="n in product.rating"
-            :key="n"
-            name="star"
-            :size="14"
-            class="star"
-          />
-        </div>
-        <span class="reviews">({{ product.reviews }})</span>
-      </div>
       <div class="price">
         <span class="price-now">{{ formatPrice(product.price) }}</span>
         <span v-if="product.oldPrice" class="price-old">{{ formatPrice(product.oldPrice) }}</span>
@@ -168,26 +156,6 @@ const favorites = useFavoritesStore()
 
 .card-name:hover {
   color: var(--rose-600);
-}
-
-.rating {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.stars {
-  display: inline-flex;
-  gap: 2px;
-}
-
-.star {
-  color: var(--gold);
-}
-
-.reviews {
-  font-size: 12px;
-  color: var(--ink-400);
 }
 
 .price {

@@ -40,10 +40,9 @@ const payments = ['Pago Movil', 'Transferencias','Zelle', 'USDT', 'Dolares', 'Eu
   <footer class="footer">
     <div class="container footer-grid">
       <div class="footer-brand">
-        <div class="brand">
-          <span class="brand-script">{{ STORE.name }} </span>
-          <span class="brand-sub"> Accesorios</span>
-        </div>
+        <router-link to="/" class="brand">
+          <img src="/img/logo.png" class="brand-logo" alt="Detallitos" />
+        </router-link>
         <p class="footer-desc">Accesorios que cuentan tu historia y realzan tu esencia, hechos con amor para ti.</p>
         <div class="socials">
           <a
@@ -118,6 +117,12 @@ const payments = ['Pago Movil', 'Transferencias','Zelle', 'USDT', 'Dolares', 'Eu
   grid-template-columns: 1.6fr 1fr 1fr 1fr 1.2fr;
   gap: 36px;
   padding-bottom: 40px;
+}
+
+.brand-logo {
+  height: 80px;
+  width: auto;
+  object-fit: contain;
 }
 
 .brand-script {

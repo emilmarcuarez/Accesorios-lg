@@ -5,7 +5,6 @@ import FeaturedProducts from '@/components/FeaturedProducts.vue'
 import PromoBanner from '@/components/PromoBanner.vue'
 import NewArrivals from '@/components/NewArrivals.vue'
 import TrustFeatures from '@/components/TrustFeatures.vue'
-import Testimonials from '@/components/Testimonials.vue'
 import InstagramSection from '@/components/InstagramSection.vue'
 import NewsletterSection from '@/components/NewsletterSection.vue'
 </script>
@@ -18,7 +17,6 @@ import NewsletterSection from '@/components/NewsletterSection.vue'
     <PromoBanner />
     <NewArrivals />
     <TrustFeatures />
-    <Testimonials />
     <InstagramSection />
     <NewsletterSection />
   </main>

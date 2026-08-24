@@ -50,13 +50,6 @@ function buyNow() {
           <span class="eyebrow">{{ category?.name }}</span>
           <h1 class="product-name">{{ product.name }}</h1>
 
-          <div class="rating">
-            <div class="stars">
-              <AppIcon v-for="n in product.rating" :key="n" name="star" :size="15" class="star" />
-            </div>
-            <span class="reviews">{{ product.reviews }} reseñas</span>
-          </div>
-
           <div class="price">
             <span class="price-now">{{ formatPrice(product.price) }}</span>
             <span v-if="product.oldPrice" class="price-old">{{ formatPrice(product.oldPrice) }}</span>
@@ -177,27 +170,6 @@ function buyNow() {
   color: var(--ink-900);
   line-height: 1.1;
   margin: 12px 0 14px;
-}
-
-.rating {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-bottom: 18px;
-}
-
-.stars {
-  display: inline-flex;
-  gap: 2px;
-}
-
-.star {
-  color: var(--gold);
-}
-
-.reviews {
-  font-size: 13px;
-  color: var(--ink-400);
 }
 
 .price {

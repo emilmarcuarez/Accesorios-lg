@@ -1,5 +1,5 @@
 <script setup>
-import { ref } from 'vue'
+import { ref, onUnmounted } from 'vue'
 import AppIcon from '@/components/AppIcon.vue'
 import { useAuthStore } from '@/store/auth'
 import { STORE } from '@/config'
@@ -9,6 +9,8 @@ const email = ref('')
 const error = ref('')
 const sent = ref(false)
 const loading = ref(false)
+const countdown = ref(0)
+const intervalId = ref(null)
 
 async function submit() {
   error.value = ''
@@ -20,7 +22,26 @@ async function submit() {
     return
   }
   sent.value = true
+  startCountdown()
 }
+
+function startCountdown() {
+  countdown.value = 60
+  stopCountdown()
+  intervalId.value = setInterval(() => {
+    countdown.value -= 1
+    if (countdown.value <= 0) stopCountdown()
+  }, 1000)
+}
+
+function stopCountdown() {
+  if (intervalId.value) {
+    clearInterval(intervalId.value)
+    intervalId.value = null
+  }
+}
+
+onUnmounted(stopCountdown)
 </script>
 
 <template>
@@ -40,7 +61,14 @@ async function submit() {
           <AppIcon name="check" :size="34" class="sent-icon" />
           <p class="sent-title">Revisa tu correo</p>
           <p class="sent-text">Te enviamos un enlace a <strong>{{ email }}</strong> para restablecer tu contraseña.</p>
-          <router-link to="/login" class="btn btn-primary">Volver al inicio de sesión</router-link>
+          <p class="spam-note">
+            <AppIcon name="mail" :size="15" />
+            Revisa también la carpeta de spam / correo no deseado.
+          </p>
+          <button class="btn btn-primary" :disabled="countdown > 0 || loading" @click="submit">
+            {{ countdown > 0 ? `Reenviar en ${countdown}s` : 'Reenviar enlace' }}
+          </button>
+          <router-link to="/login" class="btn btn-ghost">Volver al inicio de sesión</router-link>
         </div>
 
         <form v-else @submit.prevent="submit">
@@ -185,6 +213,23 @@ async function submit() {
   color: var(--ink-500);
   font-size: 14px;
   max-width: 360px;
+}
+
+.spam-note {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--rose-50);
+  border: 1px solid var(--rose-150);
+  color: var(--rose-600);
+  font-size: 13px;
+  padding: 10px 14px;
+  border-radius: 10px;
+  max-width: 340px;
+}
+
+.sent-box .btn {
+  margin-top: 6px;
 }
 
 .auth-switch {

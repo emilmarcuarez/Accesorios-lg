@@ -140,21 +140,3 @@ export const PRODUCTS = [
     isNew: false,
   },
 ]
-
-export const TESTIMONIALS = [
-  {
-    name: 'Valentina R.',
-    rating: 5,
-    text: 'Amo cada detalle, todos los accesorios son hermosos y la atención es inigualable.',
-  },
-  {
-    name: 'María P.',
-    rating: 5,
-    text: 'El empaque es demasiado lindo y el envío llegó rapidito. Volveré a comprar seguro.',
-  },
-  {
-    name: 'Carolina G.',
-    rating: 5,
-    text: 'La experiencia con un regalo personalizado fue cero aburrida y super especial.',
-  },
-]

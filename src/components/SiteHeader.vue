@@ -59,8 +59,7 @@ function goFavorites() {
     <header class="header">
       <div class="container header-inner">
         <router-link to="/" class="brand" @click="menuOpen = false">
-          <span class="brand-script">{{ STORE.name }}</span>
-          <span class="brand-sub">Accesorios</span>
+          <img src="/img/logo.png" class="brand-logo" alt="Detallitos" />
         </router-link>
 
         <nav class="nav">
@@ -104,8 +103,7 @@ function goFavorites() {
           <AppIcon name="menu" :size="22" />
         </button>
         <router-link to="/" class="brand brand-mobile" @click="menuOpen = false">
-          <span class="brand-script">{{ STORE.name }}</span>
-          <span class="brand-sub">Accesorios</span>
+          <img src="/img/logo.png" class="brand-logo" alt="Detallitos" />
         </router-link>
         <form class="search search-mobile" @submit.prevent="submitSearch">
           <AppIcon name="search" :size="18" />
@@ -125,8 +123,7 @@ function goFavorites() {
       <aside v-if="menuOpen" class="drawer">
         <div class="drawer-head">
           <div class="brand">
-            <span class="brand-script">{{ STORE.name }}</span>
-            <span class="brand-sub">Accesorios</span>
+            <img src="/img/logo.png" class="brand-logo" alt="Detallitos" />
           </div>
           <button class="icon-btn" aria-label="Cerrar" @click="menuOpen = false">
             <AppIcon name="close" :size="22" />
@@ -192,8 +189,14 @@ function goFavorites() {
 
 .brand {
   display: flex;
-  flex-direction: column;
+  align-items: center;
   line-height: 1;
+}
+
+.brand-logo {
+  height: 76px;
+  width: auto;
+  object-fit: contain;
 }
 
 .brand-script {
@@ -406,12 +409,8 @@ function goFavorites() {
     padding-top: 12px;
     padding-bottom: 12px;
   }
-  .brand-mobile .brand-script {
-    font-size: 24px;
-  }
-  .brand-mobile .brand-sub {
-    font-size: 9px;
-    letter-spacing: 0.22em;
+  .brand-mobile .brand-logo {
+    height: 36px;
   }
   .search-mobile {
     display: flex;
