@@ -270,6 +270,10 @@ export const useCartStore = defineStore('cart', {
 
         if (res?.data?.id) {
           orderCode = `#${String(res.data.id).padStart(4, '0')}`
+          try {
+            localStorage.setItem('detallitos_order_seq', String(res.data.id))
+          } catch {}
+
           if (this.coupon) {
             await recordOrderCoupon(res.data.id, {
               code: this.coupon.code,
@@ -283,7 +287,19 @@ export const useCartStore = defineStore('cart', {
       }
 
       if (!orderCode) {
-        orderCode = `#WEB-${Date.now().toString().slice(-4)}`
+        let seq = 1
+        try {
+          const stored = localStorage.getItem('detallitos_order_seq')
+          if (stored && !isNaN(parseInt(stored, 10))) {
+            seq = parseInt(stored, 10) + 1
+          }
+        } catch {
+          seq = 1
+        }
+        try {
+          localStorage.setItem('detallitos_order_seq', String(seq))
+        } catch {}
+        orderCode = `#${String(seq).padStart(4, '0')}`
       }
 
       window.open(this.whatsappUrl(orderCode), '_blank')
@@ -292,9 +308,17 @@ export const useCartStore = defineStore('cart', {
       const auth = useAuthStore()
       const isCustom = Boolean(customOrder)
       const items = isCustom ? customOrder.order_items || [] : this.items
+      let fallbackSeq = '0001'
+      try {
+        const stored = localStorage.getItem('detallitos_order_seq')
+        if (stored && !isNaN(parseInt(stored, 10))) {
+          fallbackSeq = String(parseInt(stored, 10)).padStart(4, '0')
+        }
+      } catch {}
+
       const orderId = isCustom
         ? `#${String(customOrder.id).padStart(4, '0')}`
-        : `#FAC-${Date.now().toString().slice(-6)}`
+        : `#${fallbackSeq}`
       const orderDate = isCustom
         ? new Date(customOrder.created_at).toLocaleDateString('es-VE')
         : new Date().toLocaleDateString('es-VE')
