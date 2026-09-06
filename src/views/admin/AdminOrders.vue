@@ -211,12 +211,23 @@ const filteredOrders = computed(() => {
     // Filtro de búsqueda (por ID, #padded, cliente, teléfono o código de cupón)
     if (searchQuery.value.trim()) {
       const q = searchQuery.value.toLowerCase().trim()
+      const cleanQ = q.replace(/^#/, '')
       const idStr = String(order.id)
       const paddedId = idStr.padStart(4, '0')
+      const hashId = `#${idStr}`
+      const hashPadded = `#${paddedId}`
       const clientName = `${order.profiles?.name || order.customer_name || ''} ${order.profiles?.lastname || ''}`.toLowerCase()
       const phone = (order.customer_phone || '').toLowerCase()
       const coupon = (order.coupon_code || '').toLowerCase()
-      if (!idStr.includes(q) && !paddedId.includes(q) && !clientName.includes(q) && !phone.includes(q) && !coupon.includes(q)) {
+      if (
+        !idStr.includes(cleanQ) &&
+        !paddedId.includes(cleanQ) &&
+        !hashId.includes(q) &&
+        !hashPadded.includes(q) &&
+        !clientName.includes(q) &&
+        !phone.includes(q) &&
+        !coupon.includes(q)
+      ) {
         return false
       }
     }

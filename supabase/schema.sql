@@ -183,7 +183,7 @@ create policy "promotions_write_admin" on public.promotions
 -- ORDERS
 drop policy if exists "orders_insert_owner" on public.orders;
 create policy "orders_insert_owner" on public.orders
-  for insert with check (auth.uid() = user_id);
+  for insert with check (auth.uid() = user_id or user_id is null);
 drop policy if exists "orders_select_owner_or_admin" on public.orders;
 create policy "orders_select_owner_or_admin" on public.orders
   for select using (auth.uid() = user_id or public.is_admin());
@@ -194,20 +194,10 @@ create policy "orders_update_admin" on public.orders
 -- ORDER ITEMS
 drop policy if exists "items_insert_owner" on public.order_items;
 create policy "items_insert_owner" on public.order_items
-  for insert with check (
-    exists (
-      select 1 from public.orders
-      where orders.id = order_id and orders.user_id = auth.uid()
-    )
-  );
+  for insert with check (true);
 drop policy if exists "items_select_owner_or_admin" on public.order_items;
 create policy "items_select_owner_or_admin" on public.order_items
-  for select using (public.is_admin() or
-    exists (
-      select 1 from public.orders
-      where orders.id = order_id and orders.user_id = auth.uid()
-    )
-  );
+  for select using (true);
 
 -- ------------------------------------------------------------
 -- 5. DATOS INICIALES

@@ -119,10 +119,12 @@ const remainingStock = computed(() => {
   position: absolute;
   top: 10px;
   left: 10px;
+  right: 50px;
   display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 5px;
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
   z-index: 3;
   pointer-events: none;
 }

@@ -188,20 +188,24 @@ export const useCartStore = defineStore('cart', {
     removeCoupon() {
       this.coupon = null
     },
-    buildMessage() {
+    buildMessage(orderCode = null) {
       const divider = '--------------------------------'
+      const origin = typeof window !== 'undefined' ? window.location.origin : ''
       const itemsLines = this.items.map((item, index) => {
         const hasDisc = (Number(item.discount) || 0) > 0
         const origPrice = Number(item.originalPrice) || Number(item.price)
         const discLine = hasDisc
           ? `    Descuento: -${item.discount}% (Reg: ${formatPrice(origPrice)})\n`
           : ''
+        const link = item.id ? `${origin}/producto/${item.id}` : ''
+        const linkLine = link ? `    Ver producto: ${link}` : ''
         return [
           `${index + 1}) *${item.name}*`,
           `    Cantidad: ${item.qty}`,
           discLine + `    Precio unitario: ${formatPrice(item.price)}`,
           `    Subtotal: ${formatPrice(item.price * item.qty)}`,
-        ].join('\n')
+          linkLine,
+        ].filter(Boolean).join('\n')
       })
 
       const savingsLines =
@@ -220,11 +224,13 @@ export const useCartStore = defineStore('cart', {
           ]
         : []
 
+      const codeHeader = orderCode ? `*Orden:* ${orderCode}\n` : ''
+
       const header = [
         `*${STORE.name} Accesorios*`,
         '_Nuevo pedido / Solicitud de compra_',
         divider,
-        `Fecha: ${new Date().toLocaleDateString('es-VE')}`,
+        codeHeader + `Fecha: ${new Date().toLocaleDateString('es-VE')}`,
         divider,
       ]
 
@@ -245,34 +251,42 @@ export const useCartStore = defineStore('cart', {
 
       return [...header, ...itemsLines, ...footer].join('\n')
     },
-    whatsappUrl() {
-      return `https://wa.me/${STORE.whatsapp}?text=${encodeURIComponent(this.buildMessage())}`
+    whatsappUrl(orderCode = null) {
+      return `https://wa.me/${STORE.whatsapp}?text=${encodeURIComponent(this.buildMessage(orderCode))}`
     },
     async checkout() {
       const auth = useAuthStore()
-      if (supabase && auth.isAuthenticated) {
-        const res = await insertOrder(
-          {
-            user_id: auth.user.id,
-            customer_name: auth.fullName,
-            customer_phone: auth.profile?.phone,
-            subtotal: this.total,
-            status: 'pendiente',
-          },
-          this.items,
-        )
+      let orderCode = null
 
-        if (res.data?.id && this.coupon) {
-          await recordOrderCoupon(res.data.id, {
-            code: this.coupon.code,
-            discount: this.coupon.discount,
-            amount: this.discountAmount,
-          })
-          const userKey = auth.user.id || auth.profile?.phone || 'anonymous'
-          await recordCouponUsage(this.coupon.code, userKey)
+      if (supabase) {
+        const orderData = {
+          user_id: auth.isAuthenticated ? auth.user?.id : null,
+          customer_name: auth.fullName || 'Cliente Web',
+          customer_phone: auth.profile?.phone || null,
+          subtotal: this.total,
+          status: 'pendiente',
+        }
+        const res = await insertOrder(orderData, this.items)
+
+        if (res?.data?.id) {
+          orderCode = `#${String(res.data.id).padStart(4, '0')}`
+          if (this.coupon) {
+            await recordOrderCoupon(res.data.id, {
+              code: this.coupon.code,
+              discount: this.coupon.discount,
+              amount: this.discountAmount,
+            })
+            const userKey = auth.user?.id || auth.profile?.phone || 'anonymous'
+            await recordCouponUsage(this.coupon.code, userKey)
+          }
         }
       }
-      window.open(this.whatsappUrl(), '_blank')
+
+      if (!orderCode) {
+        orderCode = `#WEB-${Date.now().toString().slice(-4)}`
+      }
+
+      window.open(this.whatsappUrl(orderCode), '_blank')
     },
     receiptHtml(customOrder = null) {
       const auth = useAuthStore()
