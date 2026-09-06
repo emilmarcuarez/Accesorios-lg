@@ -152,7 +152,6 @@ function submit() {
         </div>
 
         <button type="submit" class="btn btn-ws">
-          <AppIcon name="whatsapp" :size="18" />
           Enviar mensaje por WhatsApp
         </button>
       </form>
@@ -352,9 +351,9 @@ function submit() {
 }
 
 .btn-ws {
-  background: #111111;
-  color: #ffffff;
-  border: 1px solid #111111;
+  background: #ffffff;
+  color: var(--rose-500);
+  border: 1.5px solid var(--rose-500);
   border-radius: 2px;
   font-family: 'Montserrat', sans-serif;
   font-weight: 700;
@@ -368,15 +367,16 @@ function submit() {
   gap: 10px;
   cursor: pointer;
   transition: all 0.25s ease;
-  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.18);
+  box-shadow: 0 2px 10px rgba(217, 109, 139, 0.15);
   width: 100%;
 }
 
 .btn-ws:hover {
-  background: #242424;
-  border-color: #242424;
+  background: var(--rose-50);
+  border-color: var(--rose-600);
+  color: var(--rose-600);
   transform: translateY(-2px);
-  box-shadow: 0 8px 22px rgba(0, 0, 0, 0.26);
+  box-shadow: 0 6px 18px rgba(217, 109, 139, 0.25);
 }
 
 .btn-ws :deep(svg) {

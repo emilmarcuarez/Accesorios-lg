@@ -50,9 +50,9 @@ export const useCatalogStore = defineStore('catalog', {
     loaded: false,
   }),
   getters: {
-    featured: (state) => state.products.filter((p) => p.featured),
-    newArrivals: (state) => state.products.filter((p) => p.isNew),
-    discounted: (state) => state.products.filter((p) => p.discount > 0),
+    featured: (state) => state.products.filter((p) => p.featured && (Number(p.stock) || 0) > 0),
+    newArrivals: (state) => state.products.filter((p) => p.isNew && (Number(p.stock) || 0) > 0),
+    discounted: (state) => state.products.filter((p) => p.discount > 0 && (Number(p.stock) || 0) > 0),
     categoryCards: (state) =>
       state.categories.map((c) => ({
         id: c.id,

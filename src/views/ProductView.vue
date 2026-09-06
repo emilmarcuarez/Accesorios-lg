@@ -19,7 +19,12 @@ const related = computed(() =>
 )
 
 const inStock = computed(() => (product.value?.stock ?? 0) > 0)
-const maxQty = computed(() => Math.max(1, product.value?.stock ?? 1))
+const remainingStock = computed(() => {
+  if (!product.value) return 0
+  const inCart = (cart.items || []).find((it) => it.id === product.value.id)?.qty || 0
+  return Math.max(0, (Number(product.value.stock) || 0) - inCart)
+})
+const maxQty = computed(() => Math.max(1, remainingStock.value || 1))
 
 function increment() {
   if (qty.value < maxQty.value) qty.value += 1
@@ -110,14 +115,13 @@ onMounted(() => catalog.fetch())
           </div>
 
           <p class="avail">
-            <AppIcon name="bag" :size="14" />
-            {{ inStock ? `Disponibles: ${product.stock} unds` : 'Producto agotado' }}
+            Stock: {{ remainingStock }}
           </p>
 
           <div class="buy-row">
-            <button class="btn btn-primary" :disabled="!inStock" @click="addToCart">
+            <button class="btn btn-primary" :disabled="remainingStock <= 0" @click="addToCart">
               <AppIcon name="bag" :size="17" />
-              {{ inStock ? 'Agregar al carrito' : 'Agotado' }}
+              {{ remainingStock > 0 ? 'Agregar al carrito' : 'Agotado' }}
             </button>
             <button class="btn btn-whatsapp" :disabled="!inStock" @click="buyNow">
               <AppIcon name="whatsapp" :size="17" />
@@ -356,16 +360,11 @@ onMounted(() => catalog.fetch())
 }
 
 .avail {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
+  font-family: var(--font-body);
   font-size: 13px;
-  color: var(--ink-500);
+  font-weight: 500;
+  color: #888888;
   margin: -10px 0 22px;
-}
-
-.avail svg {
-  color: var(--rose-500);
 }
 
 .buy-row {

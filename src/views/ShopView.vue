@@ -216,7 +216,7 @@ function handleCircleClick(item) {
 
 // Filtrado dinámico integral
 const filteredProducts = computed(() => {
-  let list = [...(catalog.products || [])]
+  let list = (catalog.products || []).filter((p) => (Number(p.stock) || 0) > 0)
 
   // 1. Filtro por categoría
   if (selectedCategory.value && selectedCategory.value !== 'all') {

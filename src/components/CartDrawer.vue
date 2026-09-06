@@ -10,10 +10,10 @@ const catalog = useCatalogStore()
 const couponCode = ref('')
 const couponError = ref('')
 
-function getItemStock(item) {
-  if (typeof item.stock === 'number') return item.stock
+function getRemainingStock(item) {
   const prod = catalog.products.find((p) => p.id === item.id)
-  return prod ? prod.stock : null
+  const totalStock = prod ? Number(prod.stock) || 0 : (typeof item.stock === 'number' ? item.stock : 0)
+  return Math.max(0, totalStock - (Number(item.qty) || 0))
 }
 
 async function applyCoupon() {
@@ -51,15 +51,9 @@ async function applyCoupon() {
               <span v-if="item.discount" class="cart-item-discount">-{{ item.discount }}%</span>
             </div>
 
-            <!-- Mostrar cuántas quedan en stock -->
-            <div v-if="getItemStock(item) !== null" class="cart-item-stock-row">
-              <span v-if="getItemStock(item) <= 0" class="cart-stock-tag out">Agotado</span>
-              <span v-else-if="getItemStock(item) <= 3" class="cart-stock-tag low">
-                ¡Solo quedan {{ getItemStock(item) }}!
-              </span>
-              <span v-else class="cart-stock-tag in">
-                {{ getItemStock(item) }} disponibles
-              </span>
+            <!-- Mostrar cuántas quedan en stock de forma dinámica -->
+            <div class="cart-item-stock-row">
+              <span class="cart-stock-simple">Stock: {{ getRemainingStock(item) }}</span>
             </div>
 
             <div class="qty">
@@ -69,15 +63,15 @@ async function applyCoupon() {
               <span class="qty-num">{{ item.qty }}</span>
               <button
                 class="qty-btn"
-                :disabled="getItemStock(item) !== null && item.qty >= getItemStock(item)"
+                :disabled="getRemainingStock(item) <= 0"
                 aria-label="Más"
-                :title="getItemStock(item) !== null && item.qty >= getItemStock(item) ? 'Stock máximo alcanzado' : 'Añadir más'"
+                :title="getRemainingStock(item) <= 0 ? 'Stock máximo alcanzado' : 'Añadir más'"
                 @click="cart.increase(item.id)"
               >
                 <AppIcon name="plus" :size="14" />
               </button>
             </div>
-            <p v-if="getItemStock(item) !== null && item.qty >= getItemStock(item)" class="max-stock-notice">
+            <p v-if="getRemainingStock(item) <= 0" class="max-stock-notice">
               Máximo en stock
             </p>
           </div>
@@ -279,27 +273,12 @@ async function applyCoupon() {
   align-items: center;
 }
 
-.cart-stock-tag {
+.cart-stock-simple {
   font-family: var(--font-body);
-  font-size: 11px;
-  font-weight: 600;
-  display: inline-flex;
-  align-items: center;
-  line-height: 1.2;
-}
-
-.cart-stock-tag.in {
-  color: #15803d;
-}
-
-.cart-stock-tag.low {
-  color: #b45309;
-  font-weight: 700;
-}
-
-.cart-stock-tag.out {
-  color: #dc2626;
-  font-weight: 700;
+  font-size: 11.5px;
+  font-weight: 500;
+  color: #888888;
+  letter-spacing: 0.02em;
 }
 
 .max-stock-notice {

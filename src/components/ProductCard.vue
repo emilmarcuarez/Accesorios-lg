@@ -1,4 +1,5 @@
 <script setup>
+import { computed } from 'vue'
 import { useCartStore } from '@/store/cart'
 import { useFavoritesStore } from '@/store/favorites'
 import { useSettingsStore } from '@/store/settings'
@@ -15,6 +16,11 @@ const favorites = useFavoritesStore()
 const settings = useSettingsStore()
 
 settings.fetch()
+
+const remainingStock = computed(() => {
+  const inCart = (cart.items || []).find((it) => it.id === props.product.id)?.qty || 0
+  return Math.max(0, (Number(props.product.stock) || 0) - inCart)
+})
 </script>
 
 <template>
@@ -58,24 +64,16 @@ settings.fetch()
       </div>
 
       <div class="card-stock">
-        <span v-if="product.stock === 0" class="stock-pill out">
-          <span class="stock-dot"></span> Agotado
-        </span>
-        <span v-else-if="product.stock <= (settings.lowStock || 3)" class="stock-pill low">
-          <span class="stock-dot"></span> ¡Solo quedan {{ product.stock }}!
-        </span>
-        <span v-else class="stock-pill in">
-          <span class="stock-dot"></span> {{ product.stock }} disponibles
-        </span>
+        <span class="stock-simple">Stock: {{ remainingStock }}</span>
       </div>
 
       <button
         class="btn add-btn"
-        :disabled="product.stock === 0"
+        :disabled="remainingStock <= 0"
         @click="cart.add(product)"
       >
         <AppIcon name="bag" :size="16" />
-        {{ product.stock === 0 ? 'Agotado' : 'Agregar al carrito' }}
+        {{ remainingStock <= 0 ? 'Agotado' : 'Agregar al carrito' }}
       </button>
     </div>
   </article>
@@ -270,47 +268,12 @@ settings.fetch()
   margin: 2px 0 6px;
 }
 
-.stock-pill {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
+.stock-simple {
   font-family: var(--font-body);
-  font-size: 11px;
-  font-weight: 600;
-  line-height: 1;
-}
-
-.stock-pill.in {
-  color: #15803d;
-}
-
-.stock-pill.low {
-  color: #b45309;
-  font-weight: 700;
-}
-
-.stock-pill.out {
-  color: #dc2626;
-  font-weight: 700;
-}
-
-.stock-dot {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  display: inline-block;
-}
-
-.stock-pill.in .stock-dot {
-  background: #22c55e;
-}
-
-.stock-pill.low .stock-dot {
-  background: #f59e0b;
-}
-
-.stock-pill.out .stock-dot {
-  background: #ef4444;
+  font-size: 11.5px;
+  font-weight: 500;
+  color: #888888;
+  letter-spacing: 0.02em;
 }
 
 .add-btn {
@@ -320,11 +283,11 @@ settings.fetch()
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.1em;
-  background: #111111;
-  color: #ffffff;
-  border: 1px solid #111111;
+  background: #ffffff;
+  color: var(--rose-500);
+  border: 1.5px solid var(--rose-500);
   border-radius: 2px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  box-shadow: 0 2px 8px rgba(217, 109, 139, 0.12);
   transition: all 0.25s ease;
   cursor: pointer;
   display: flex;
@@ -334,9 +297,10 @@ settings.fetch()
 }
 
 .add-btn:hover:not(:disabled) {
-  background: #333333;
-  border-color: #333333;
-  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.16);
+  background: var(--rose-50);
+  border-color: var(--rose-600);
+  color: var(--rose-600);
+  box-shadow: 0 4px 14px rgba(217, 109, 139, 0.22);
   transform: translateY(-2px);
 }
 

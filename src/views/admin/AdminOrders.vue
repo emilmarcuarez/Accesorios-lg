@@ -57,8 +57,11 @@ onMounted(async () => {
 })
 
 async function changeStatus(order, event) {
-  await updateOrderStatus(order.id, event.target.value)
+  const newStatus = event.target.value
+  const oldStatus = order.status
+  await updateOrderStatus(order.id, newStatus, oldStatus)
   await load()
+  await catalog.fetch(true)
 }
 
 // Ventanas de fechas para cálculo y comparación

@@ -229,17 +229,23 @@ onMounted(() => catalog.fetch())
   width: 32px;
   height: 32px;
   border-radius: 2px;
-  background: #111111;
-  color: var(--white);
+  background: #ffffff;
+  color: var(--rose-500);
+  border: 1.5px solid var(--rose-500);
   display: inline-flex;
   align-items: center;
   justify-content: center;
   transition: all 0.2s ease;
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(217, 109, 139, 0.12);
 }
 
 .mini-add:hover {
-  background: #333333;
-  transform: scale(1.05);
+  background: var(--rose-50);
+  border-color: var(--rose-600);
+  color: var(--rose-600);
+  box-shadow: 0 4px 14px rgba(217, 109, 139, 0.25);
+  transform: scale(1.08);
 }
 
 .empty {

@@ -187,7 +187,7 @@ async function remove(product) {
                     'low-stock': (product.stock ?? 0) > 0 && (product.stock ?? 0) <= 5,
                   }"
                 >
-                  {{ product.stock ?? 0 }} uds
+                  {{ (product.stock ?? 0) <= 0 ? 'Agotado' : `${product.stock} uds` }}
                 </span>
               </td>
               <td>
@@ -348,8 +348,12 @@ async function remove(product) {
 }
 
 .stock-pill.out-of-stock {
-  color: #dc2626;
-  font-weight: 600;
+  color: #b91c1c;
+  background: #fee2e2;
+  font-weight: 700;
+  padding: 3px 8px;
+  border-radius: 4px;
+  font-size: 11.5px;
 }
 
 .tags-group {

@@ -330,9 +330,75 @@ export async function deleteHeroMedia(url) {
   }
 }
 
-export async function updateOrderStatus(id, status) {
+export async function deductOrderStock(orderId) {
+  if (!supabase || !orderId) return
+  try {
+    const { data: items } = await supabase
+      .from('order_items')
+      .select('product_id, qty')
+      .eq('order_id', orderId)
+    if (!items || !items.length) return
+
+    for (const it of items) {
+      if (!it.product_id || !it.qty) continue
+      const { data: prod } = await supabase
+        .from('products')
+        .select('stock')
+        .eq('id', it.product_id)
+        .maybeSingle()
+      if (prod) {
+        const currentStock = Number(prod.stock) || 0
+        const newStock = Math.max(0, currentStock - Number(it.qty))
+        await supabase.from('products').update({ stock: newStock }).eq('id', it.product_id)
+      }
+    }
+  } catch (err) {
+    console.warn('Error al descontar stock de orden:', err)
+  }
+}
+
+export async function restoreOrderStock(orderId) {
+  if (!supabase || !orderId) return
+  try {
+    const { data: items } = await supabase
+      .from('order_items')
+      .select('product_id, qty')
+      .eq('order_id', orderId)
+    if (!items || !items.length) return
+
+    for (const it of items) {
+      if (!it.product_id || !it.qty) continue
+      const { data: prod } = await supabase
+        .from('products')
+        .select('stock')
+        .eq('id', it.product_id)
+        .maybeSingle()
+      if (prod) {
+        const currentStock = Number(prod.stock) || 0
+        const newStock = currentStock + Number(it.qty)
+        await supabase.from('products').update({ stock: newStock }).eq('id', it.product_id)
+      }
+    }
+  } catch (err) {
+    console.warn('Error al restaurar stock de orden:', err)
+  }
+}
+
+export async function updateOrderStatus(id, status, oldStatus = null) {
   if (!supabase) return { error: 'Supabase no configurado' }
-  return supabase.from('orders').update({ status }).eq('id', id).select().single()
+  const res = await supabase.from('orders').update({ status }).eq('id', id).select().single()
+  if (res.error) return res
+
+  const isNowConfirmed = ['pagado', 'enviado', 'entregado'].includes(status)
+  const wasConfirmed = ['pagado', 'enviado', 'entregado'].includes(oldStatus)
+
+  if (isNowConfirmed && !wasConfirmed) {
+    await deductOrderStock(id)
+  } else if (!isNowConfirmed && wasConfirmed && status === 'cancelado') {
+    await restoreOrderStock(id)
+  }
+
+  return res
 }
 
 export async function insertOrder(order, items) {
@@ -346,6 +412,12 @@ export async function insertOrder(order, items) {
   await supabase.from('order_items').insert(
     items.map((item) => ({ order_id: data.id, product_id: item.id, qty: item.qty, price: item.price })),
   )
+
+  // Si se crea directamente como pagado/confirmado (ej. venta manual en admin)
+  if (['pagado', 'enviado', 'entregado'].includes(order.status)) {
+    await deductOrderStock(data.id)
+  }
+
   return { data }
 }
 
