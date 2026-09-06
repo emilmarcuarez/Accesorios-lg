@@ -1,5 +1,5 @@
 <script setup>
-import { ref, watch } from 'vue'
+import { ref, watch, onUnmounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useAuthStore } from '@/store/auth'
 import AppIcon from '@/components/AppIcon.vue'
@@ -9,6 +9,28 @@ const router = useRouter()
 const route = useRoute()
 
 const mobileMenuOpen = ref(false)
+
+// Bloquear scroll de fondo cuando el menú móvil está abierto
+watch(mobileMenuOpen, (isOpen) => {
+  if (typeof document === 'undefined') return
+  if (isOpen) {
+    document.documentElement.style.overflow = 'hidden'
+    document.body.style.overflow = 'hidden'
+    document.body.style.overscrollBehavior = 'none'
+  } else {
+    document.documentElement.style.overflow = ''
+    document.body.style.overflow = ''
+    document.body.style.overscrollBehavior = ''
+  }
+})
+
+onUnmounted(() => {
+  if (typeof document !== 'undefined') {
+    document.documentElement.style.overflow = ''
+    document.body.style.overflow = ''
+    document.body.style.overscrollBehavior = ''
+  }
+})
 
 // Cerrar el drawer automáticamente al cambiar de ruta
 watch(
@@ -70,6 +92,7 @@ async function logout() {
         v-if="mobileMenuOpen"
         class="admin-backdrop"
         @click="mobileMenuOpen = false"
+        @touchmove.prevent
       ></div>
     </transition>
 

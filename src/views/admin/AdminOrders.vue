@@ -2239,11 +2239,43 @@ async function saveManualSale() {
   .search-box,
   .search-input {
     width: 100%;
+    box-sizing: border-box;
+  }
+  .view-mode-selector {
+    flex-direction: column;
+    align-items: stretch;
+    width: 100%;
+    gap: 8px;
+  }
+  .view-tabs {
+    display: flex;
+    width: 100%;
+  }
+  .view-tab-btn {
+    flex: 1;
+    text-align: center;
+  }
+  .coupon-dropdown-box,
+  .coupon-filter-select {
+    width: 100%;
+    box-sizing: border-box;
   }
   .sale-summary-bar {
     flex-direction: column;
     align-items: flex-start;
     gap: 10px;
+  }
+}
+
+@media (max-width: 480px) {
+  .total-value {
+    font-size: 18px;
+  }
+  .client-cell strong {
+    font-size: 12.5px;
+  }
+  .order-price {
+    font-size: 13px;
   }
 }
 </style>

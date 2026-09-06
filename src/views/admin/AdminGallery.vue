@@ -137,4 +137,16 @@ async function remove(item) {
     grid-template-columns: repeat(3, 1fr);
   }
 }
+
+@media (max-width: 500px) {
+  .gallery-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+    padding: 12px;
+  }
+  .upload {
+    width: 100%;
+    justify-content: center;
+  }
+}
 </style>

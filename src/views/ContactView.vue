@@ -70,7 +70,7 @@ function submit() {
     </section>
 
     <section class="container contact-grid">
-      <div class="contact-info" data-aos="fade-right">
+      <div class="contact-info" data-aos="fade-up">
         <div class="info-item">
           <div class="info-icon"><AppIcon name="whatsapp" :size="22" /></div>
           <div>
@@ -107,7 +107,7 @@ function submit() {
         </div>
       </div>
 
-      <form class="contact-form" data-aos="fade-left" @submit.prevent="submit">
+      <form class="contact-form" data-aos="fade-up" data-aos-delay="100" @submit.prevent="submit">
         <div class="form-row-2">
           <label class="field">
             <span>Nombre completo *</span>
@@ -160,6 +160,11 @@ function submit() {
 </template>
 
 <style scoped>
+.contact {
+  width: 100%;
+  overflow-x: hidden;
+}
+
 .contact-hero {
   background: linear-gradient(180deg, #fff7f9 0%, #ffffff 100%);
   border-bottom: 1.5px solid var(--rose-200, #f3c6d2);
@@ -174,7 +179,7 @@ function submit() {
 
 .contact-title {
   font-family: var(--font-display);
-  font-size: clamp(40px, 7vw, 60px);
+  font-size: clamp(36px, 6vw, 60px);
   font-weight: 600;
   color: var(--ink-900);
 }
@@ -182,26 +187,32 @@ function submit() {
 .contact-sub {
   margin-top: 8px;
   color: var(--ink-500);
+  font-size: clamp(14px, 2vw, 16px);
+  padding: 0 10px;
 }
 
 .contact-grid {
   display: grid;
   grid-template-columns: 1fr 1.4fr;
-  gap: 50px;
+  gap: 48px;
   padding-top: 60px;
   padding-bottom: 70px;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .contact-info {
   display: flex;
   flex-direction: column;
   gap: 26px;
+  min-width: 0;
 }
 
 .info-item {
   display: flex;
   align-items: center;
   gap: 16px;
+  min-width: 0;
 }
 
 .info-icon {
@@ -226,6 +237,7 @@ function submit() {
 .info-value {
   font-weight: 600;
   color: var(--ink-900);
+  word-break: break-word;
 }
 
 .info-value:hover {
@@ -240,12 +252,18 @@ function submit() {
   display: flex;
   flex-direction: column;
   gap: 18px;
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.03);
 }
 
 .field {
   display: flex;
   flex-direction: column;
   gap: 8px;
+  width: 100%;
+  min-width: 0;
 }
 
 .field span {
@@ -264,6 +282,11 @@ function submit() {
   background: var(--rose-50);
   outline: none;
   resize: vertical;
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+  font-family: inherit;
+  transition: border-color 0.2s ease, background 0.2s ease;
 }
 
 .field input:focus,
@@ -275,8 +298,9 @@ function submit() {
 
 .form-row-2 {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   gap: 16px;
+  width: 100%;
 }
 
 .field-select {
@@ -289,6 +313,10 @@ function submit() {
   outline: none;
   cursor: pointer;
   font-family: inherit;
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+  transition: border-color 0.2s ease, background 0.2s ease;
 }
 
 .ws-notice-box {
@@ -297,10 +325,12 @@ function submit() {
   gap: 12px;
   background: #f0fdf4;
   border: 1px solid #bbf7d0;
-  border-radius: 2px;
+  border-radius: 8px;
   padding: 14px 16px;
   font-size: 13px;
   color: #166534;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .ws-notice-icon {
@@ -325,9 +355,11 @@ function submit() {
 .sent-box {
   background: #fdf2f8;
   border: 1px solid #fbcfe8;
-  border-radius: 2px;
+  border-radius: 8px;
   padding: 14px 16px;
   text-align: center;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .sent-text {
@@ -354,7 +386,7 @@ function submit() {
   background: #ffffff;
   color: var(--rose-500);
   border: 1.5px solid var(--rose-500);
-  border-radius: 2px;
+  border-radius: 4px;
   font-family: 'Montserrat', sans-serif;
   font-weight: 700;
   font-size: 13px;
@@ -369,6 +401,10 @@ function submit() {
   transition: all 0.25s ease;
   box-shadow: 0 2px 10px rgba(217, 109, 139, 0.15);
   width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+  white-space: normal;
+  text-align: center;
 }
 
 .btn-ws:hover {
@@ -383,15 +419,46 @@ function submit() {
   color: #25D366;
 }
 
-@media (max-width: 800px) {
+@media (max-width: 860px) {
   .contact-grid {
     grid-template-columns: 1fr;
+    gap: 36px;
+    padding-top: 36px;
+    padding-bottom: 50px;
+  }
+
+  .form-row-2 {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+
+  .contact-form {
+    padding: 24px 20px;
+    border-radius: 18px;
   }
 }
 
-@media (max-width: 600px) {
-  .form-row-2 {
-    grid-template-columns: 1fr;
+@media (max-width: 480px) {
+  .contact-hero {
+    padding: 40px 0;
+  }
+
+  .contact-grid {
+    gap: 28px;
+    padding-top: 28px;
+    padding-bottom: 44px;
+  }
+
+  .contact-form {
+    padding: 20px 14px;
+    gap: 16px;
+    border-radius: 16px;
+  }
+
+  .btn-ws {
+    padding: 14px 16px;
+    font-size: 12px;
+    letter-spacing: 0.05em;
   }
 }
 </style>

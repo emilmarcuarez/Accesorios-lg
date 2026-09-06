@@ -339,6 +339,8 @@ async function save() {
   background: var(--rose-50);
   outline: none;
   width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
 }
 
 .field input:focus,
@@ -379,6 +381,7 @@ async function save() {
 .checks {
   display: flex;
   gap: 20px;
+  flex-wrap: wrap;
 }
 
 .form-actions {
@@ -391,11 +394,40 @@ async function save() {
 @media (max-width: 900px) {
   .form-grid {
     grid-template-columns: 1fr;
-    gap: 26px;
+    gap: 24px;
+  }
+  .dropzone {
+    max-width: 320px;
+    margin: 0 auto;
+  }
+  .hint {
+    text-align: center;
   }
   .grid-3 {
     grid-template-columns: 1fr;
-    gap: 0;
+    gap: 14px;
+  }
+}
+
+@media (max-width: 600px) {
+  .product-form-page {
+    padding: 18px 14px;
+    border-radius: 12px;
+  }
+  .form-top {
+    margin-bottom: 20px;
+  }
+  .form-page-title {
+    font-size: 20px;
+  }
+  .form-actions {
+    flex-direction: column-reverse;
+    gap: 8px;
+    width: 100%;
+  }
+  .form-actions button {
+    width: 100%;
+    justify-content: center;
   }
 }
 </style>

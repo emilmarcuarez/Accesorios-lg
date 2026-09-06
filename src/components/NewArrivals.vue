@@ -2,12 +2,14 @@
 import { ref, computed, onMounted } from 'vue'
 import { useCatalogStore } from '@/store/catalog'
 import { useCartStore } from '@/store/cart'
+import { useCurrencyStore } from '@/store/currency'
 import AppIcon from '@/components/AppIcon.vue'
 import { formatPrice } from '@/utils/format'
 import { resolveImage } from '@/utils/image'
 
 const cart = useCartStore()
 const catalog = useCatalogStore()
+const currency = useCurrencyStore()
 const track = ref(null)
 
 const arrivals = computed(() => catalog.newArrivals)
@@ -26,19 +28,21 @@ onMounted(() => catalog.fetch())
   <section class="arrivals">
     <div class="container">
       <div class="section-head" data-aos="fade-down">
-        <span class="eyebrow">Recién llegados</span>
-        <h2 class="section-title">Lo más nuevo</h2>
-        <div class="scroll-ctrls">
-          <button class="circle-btn" aria-label="Anterior" @click="scrollBy(-1)">
-            <AppIcon name="chevronLeft" :size="18" />
+        <div>
+          <span class="eyebrow">Recién llegados</span>
+          <h2 class="section-title">Novedades de la Semana</h2>
+        </div>
+        <div class="carousel-nav">
+          <button class="nav-arrow" aria-label="Anterior" @click="scrollBy(-1)">
+            <AppIcon name="chevron-left" :size="20" />
           </button>
-          <button class="circle-btn" aria-label="Siguiente" @click="scrollBy(1)">
-            <AppIcon name="chevronRight" :size="18" />
+          <button class="nav-arrow" aria-label="Siguiente" @click="scrollBy(1)">
+            <AppIcon name="chevron-right" :size="20" />
           </button>
         </div>
       </div>
 
-      <div ref="track" class="arrival-track">
+      <div v-if="arrivals.length" ref="track" class="arrivals-track">
         <article
           v-for="(product, index) in arrivals"
           :key="product.id"
@@ -55,9 +59,14 @@ onMounted(() => catalog.fetch())
           </router-link>
           <div class="arrival-foot">
             <div class="arrival-prices">
-              <span class="arrival-price">{{ formatPrice(product.price) }}</span>
-              <span v-if="product.oldPrice && product.oldPrice > product.price" class="arrival-old-price">
-                {{ formatPrice(product.oldPrice) }}
+              <div class="arrival-price-row">
+                <span class="arrival-price">{{ formatPrice(product.price) }}</span>
+                <span v-if="product.oldPrice && product.oldPrice > product.price" class="arrival-old-price">
+                  {{ formatPrice(product.oldPrice) }}
+                </span>
+              </div>
+              <span v-if="currency.effectiveRate" class="arrival-price-bs">
+                Bs. {{ currency.formatBsNum(product.price) }}
               </span>
             </div>
             <button class="mini-add" aria-label="Agregar al carrito" @click="cart.add(product)">
@@ -209,6 +218,12 @@ onMounted(() => catalog.fetch())
 
 .arrival-prices {
   display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.arrival-price-row {
+  display: flex;
   align-items: baseline;
   gap: 6px;
 }
@@ -223,6 +238,12 @@ onMounted(() => catalog.fetch())
   font-size: 12px;
   color: #999999;
   text-decoration: line-through;
+}
+
+.arrival-price-bs {
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--rose-600);
 }
 
 .mini-add {

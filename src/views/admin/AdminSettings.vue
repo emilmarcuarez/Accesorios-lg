@@ -2,18 +2,27 @@
 import { ref, onMounted } from 'vue'
 import AppIcon from '@/components/AppIcon.vue'
 import { useSettingsStore, DEFAULT_ABOUT } from '@/store/settings'
+import { useCurrencyStore } from '@/store/currency'
 import { DEFAULT_STORE, STORE } from '@/config'
 import { uploadImage } from '@/lib/db'
 import { resolveImage } from '@/utils/image'
 
 const settings = useSettingsStore()
+const currency = useCurrencyStore()
 
 const loading = ref(false)
 const saved = ref(false)
 const uploadingAbout = ref(false)
+const updatingRate = ref(false)
+const rateUpdatedMsg = ref('')
 
 const lowStock = ref(5)
 const aboutForm = ref({ ...DEFAULT_ABOUT })
+const currencyForm = ref({
+  apiKey: '',
+  manualRate: null,
+  autoUpdate: true,
+})
 const form = ref({
   name: DEFAULT_STORE.name,
   tagline: DEFAULT_STORE.tagline,
@@ -28,11 +37,19 @@ const form = ref({
 })
 
 onMounted(async () => {
-  await settings.fetch(true)
+  await Promise.all([
+    settings.fetch(true),
+    currency.init(),
+  ])
   lowStock.value = settings.lowStock || 5
   aboutForm.value = {
     ...DEFAULT_ABOUT,
     ...(settings.about || {}),
+  }
+  currencyForm.value = {
+    apiKey: currency.apiKey || '',
+    manualRate: currency.manualRate || null,
+    autoUpdate: currency.autoUpdate !== false,
   }
   form.value = {
     name: settings.storeInfo.name || DEFAULT_STORE.name,
@@ -47,6 +64,21 @@ onMounted(async () => {
     coupon: settings.storeInfo.coupon || DEFAULT_STORE.coupon,
   }
 })
+
+async function refreshLiveRate() {
+  updatingRate.value = true
+  rateUpdatedMsg.value = ''
+  const res = await currency.fetchRate(true)
+  updatingRate.value = false
+  if (res.ok) {
+    rateUpdatedMsg.value = `¡Tasa actualizada con éxito! 1 USD = ${currency.formattedRate}`
+  } else {
+    rateUpdatedMsg.value = 'No se pudo consultar la API en vivo. Se mantiene la última tasa guardada.'
+  }
+  setTimeout(() => {
+    rateUpdatedMsg.value = ''
+  }, 5000)
+}
 
 async function onAboutImageUpload(event) {
   const file = event.target.files?.[0]
@@ -88,6 +120,7 @@ async function save() {
     settings.saveStoreInfo(form.value),
     settings.saveLowStock(lowStock.value),
     settings.saveAbout(aboutForm.value),
+    currency.saveConfig(currencyForm.value),
   ])
 
   loading.value = false
@@ -367,7 +400,102 @@ async function save() {
         </div>
       </div>
 
-      <!-- 6. ACCESO DIRECTO A BANNERS DE LA PORTADA -->
+      <!-- 6. TASA DE CAMBIO BCV / DOLARVZLA -->
+      <div class="admin-card rate-config-card">
+        <div class="card-head">
+          <div class="card-icon"><AppIcon name="sparkles" :size="20" /></div>
+          <div>
+            <h2 class="card-title">Tasa de Cambio BCV · DolarVZLA (USD / Bolívares)</h2>
+            <p class="card-desc">
+              Sincronización de la tasa oficial del Banco Central de Venezuela en tiempo real para mostrar precios duales (USD / Bs.) en toda la tienda y en los pedidos por WhatsApp.
+            </p>
+          </div>
+        </div>
+
+        <!-- Bloque de Estado de Tasa Activa -->
+        <div class="rate-status-banner">
+          <div class="rate-status-left">
+            <span class="rate-live-dot"></span>
+            <div>
+              <span class="rate-status-tag">TASA VIGENTE APLICADA EN LA TIENDA</span>
+              <div class="rate-status-val">{{ currency.formattedRate }} <small style="font-size: 14px; font-weight: 500; color: var(--ink-500);">/ 1 USD</small></div>
+              <div class="rate-status-date">
+                Fecha de vigencia oficial: <strong>{{ currency.formattedDate }}</strong>
+                <span v-if="currency.changePercentage" class="rate-change-tag">
+                  {{ currency.changePercentage > 0 ? '+' : '' }}{{ Number(currency.changePercentage).toFixed(2) }}%
+                </span>
+              </div>
+            </div>
+          </div>
+          <button
+            type="button"
+            class="admin-btn refresh-rate-btn"
+            :disabled="updatingRate"
+            @click="refreshLiveRate"
+          >
+            <AppIcon name="sparkles" :size="16" />
+            {{ updatingRate ? 'Consultando API...' : 'Actualizar tasa ahora' }}
+          </button>
+        </div>
+
+        <div v-if="rateUpdatedMsg" class="alert-success rate-alert">
+          <AppIcon name="check" :size="16" />
+          <span>{{ rateUpdatedMsg }}</span>
+        </div>
+
+        <div class="fields-grid" style="margin-top: 18px;">
+          <!-- Modo Automático / Manual -->
+          <div class="field-item col-span-2">
+            <label class="toggle-rate-mode">
+              <input
+                v-model="currencyForm.autoUpdate"
+                type="checkbox"
+                class="toggle-checkbox"
+              />
+              <span class="toggle-label-text">
+                <strong>Actualización automática desde DolarVZLA (Recomendado)</strong>
+                <span class="toggle-sub">La tienda consulta la tasa oficial del día del BCV al momento y la mantiene al día sin intervención manual.</span>
+              </span>
+            </label>
+          </div>
+
+          <!-- Tasa Manual de Respaldo -->
+          <div class="field-item">
+            <label class="field-label">Tasa Manual de Respaldo (Bs.)</label>
+            <input
+              v-model.number="currencyForm.manualRate"
+              type="number"
+              step="0.01"
+              placeholder="Ej: 813.74"
+              class="field-input"
+            />
+            <p class="field-hint">
+              Si desactivas la actualización automática o la API externa no responde, se aplicará este valor fijo.
+            </p>
+          </div>
+
+          <!-- API Key DolarVZLA -->
+          <div class="field-item">
+            <label class="field-label">
+              <span>API Key de DolarVZLA (Opcional)</span>
+              <a href="https://dolarvzla.com/settings/api" target="_blank" class="live-link">
+                dolarvzla.com/settings/api →
+              </a>
+            </label>
+            <input
+              v-model="currencyForm.apiKey"
+              type="password"
+              placeholder="Pega tu API Key de dolarvzla.com si dispones de una"
+              class="field-input"
+            />
+            <p class="field-hint">
+              El endpoint público BCV funciona sin clave. Si generas una clave en <strong>dolarvzla.com/settings/api</strong>, ingrésala aquí para mayor prioridad.
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <!-- 7. ACCESO DIRECTO A BANNERS DE LA PORTADA -->
       <div class="admin-card banner-shortcut-card">
         <div class="card-head">
           <div class="card-icon"><AppIcon name="sparkles" :size="20" /></div>
@@ -721,5 +849,170 @@ async function save() {
 
 .about-nav-link-row {
   margin-top: 2px;
+}
+
+/* Estilos de Configuración de Tasa de Cambio */
+.rate-status-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  background: #fff7f9;
+  border: 1.5px solid var(--rose-200, #f3c6d2);
+  border-radius: 12px;
+  padding: 18px 22px;
+  flex-wrap: wrap;
+}
+
+.rate-status-left {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.rate-status-tag {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  color: var(--rose-600);
+  display: block;
+  margin-bottom: 2px;
+}
+
+.rate-status-val {
+  font-size: 28px;
+  font-weight: 800;
+  color: var(--ink-900);
+  line-height: 1.1;
+}
+
+.rate-status-date {
+  font-size: 12px;
+  color: var(--ink-500);
+  margin-top: 4px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.rate-change-tag {
+  background: #ecfdf5;
+  color: #047857;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 2px 7px;
+  border-radius: 6px;
+}
+
+.refresh-rate-btn {
+  background: #ffffff;
+  color: var(--rose-600);
+  border: 1.5px solid var(--rose-300, #f4b4c4);
+  padding: 10px 18px;
+  border-radius: 10px;
+  font-weight: 600;
+  font-size: 13px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  transition: all 0.2s ease;
+}
+
+.refresh-rate-btn:hover {
+  background: var(--rose-50);
+  border-color: var(--rose-400);
+}
+
+.refresh-rate-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.rate-alert {
+  margin-top: 14px;
+  margin-bottom: 0;
+}
+
+.toggle-rate-mode {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  cursor: pointer;
+  background: #f8fafc;
+  border: 1px solid var(--line);
+  padding: 14px 18px;
+  border-radius: 10px;
+  user-select: none;
+}
+
+.toggle-checkbox {
+  margin-top: 3px;
+  width: 18px;
+  height: 18px;
+  accent-color: var(--rose-600);
+  cursor: pointer;
+}
+
+.toggle-label-text {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.toggle-label-text strong {
+  font-size: 13.5px;
+  color: var(--ink-900);
+}
+
+.toggle-sub {
+  font-size: 12px;
+  color: var(--ink-500);
+  line-height: 1.4;
+}
+
+.rate-live-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: #10b981;
+  box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.35);
+  animation: pulse-rate-dot 2s infinite;
+  display: inline-block;
+  flex-shrink: 0;
+}
+
+@keyframes pulse-rate-dot {
+  0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7); }
+  70% { transform: scale(1); box-shadow: 0 0 0 5px rgba(16, 185, 129, 0); }
+  100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
+}
+
+@media (max-width: 600px) {
+  .rate-status-banner {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 14px;
+    padding: 14px 16px;
+  }
+  .refresh-rate-btn {
+    width: 100%;
+    justify-content: center;
+    box-sizing: border-box;
+  }
+  .admin-toolbar {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+  }
+  .save-btn {
+    width: 100%;
+    justify-content: center;
+    box-sizing: border-box;
+  }
+  .card-head {
+    align-items: flex-start;
+  }
 }
 </style>

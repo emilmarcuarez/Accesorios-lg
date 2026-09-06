@@ -358,6 +358,8 @@ ul {
   background: var(--rose-50);
   outline: none;
   width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
 }
 
 .admin-field input:focus,
@@ -432,6 +434,8 @@ ul {
   .admin-card {
     padding: 16px 14px;
     border-radius: 14px;
+    box-sizing: border-box;
+    width: 100%;
   }
 
   .admin-toolbar {
@@ -457,6 +461,8 @@ ul {
     padding: 20px 16px;
     border-radius: 14px;
     max-height: 92vh;
+    box-sizing: border-box;
+    width: 100%;
   }
 
   .admin-table th,
@@ -474,5 +480,24 @@ ul {
   .admin-form-actions .admin-btn {
     width: 100%;
     justify-content: center;
+  }
+}
+
+@media (max-width: 480px) {
+  .admin-modal {
+    padding: 8px;
+  }
+
+  .admin-modal-card {
+    padding: 16px 14px;
+    border-radius: 12px;
+  }
+
+  .admin-modal-title {
+    font-size: 18px;
+  }
+
+  .admin-card {
+    padding: 14px 10px;
   }
 }

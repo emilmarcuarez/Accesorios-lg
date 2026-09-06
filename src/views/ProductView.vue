@@ -5,12 +5,14 @@ import { useCatalogStore } from '@/store/catalog'
 import { useCartStore } from '@/store/cart'
 import AppIcon from '@/components/AppIcon.vue'
 import ProductCard from '@/components/ProductCard.vue'
+import { useCurrencyStore } from '@/store/currency'
 import { formatPrice } from '@/utils/format'
 import { resolveImage } from '@/utils/image'
 
 const route = useRoute()
 const cart = useCartStore()
 const catalog = useCatalogStore()
+const currency = useCurrencyStore()
 const qty = ref(1)
 
 // Zoom Modal State
@@ -206,6 +208,14 @@ onUnmounted(() => {
             </span>
           </div>
 
+          <!-- Precio en Bolívares a la tasa del momento -->
+          <div v-if="currency.effectiveRate" class="price-bs-large">
+            <span class="bs-amount">Bs. {{ currency.formatBsNum(product.price) }}</span>
+            <span class="bs-rate-tag" title="Calculado con la tasa oficial BCV de DolarVZLA">
+              Tasa BCV del momento: {{ currency.formattedRate }}
+            </span>
+          </div>
+
           <div v-if="product.discountSource === 'category'" class="category-promo-note">
             Descuento especial del {{ product.discount }}% aplicado por categoría: <strong>{{ product.categoryName }}</strong>
           </div>
@@ -225,7 +235,12 @@ onUnmounted(() => {
                 <AppIcon name="plus" :size="15" />
               </button>
             </div>
-            <span class="subtotal">Total: {{ formatPrice(product.price * qty) }}</span>
+            <div class="subtotal-group">
+              <span class="subtotal">Total: {{ formatPrice(product.price * qty) }}</span>
+              <span v-if="currency.effectiveRate" class="subtotal-bs">
+                (Bs. {{ currency.formatBsNum(product.price * qty) }})
+              </span>
+            </div>
           </div>
 
           <p class="avail">
@@ -512,17 +527,62 @@ onUnmounted(() => {
   margin: 12px 0 14px;
 }
 
+.price-box {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+
 .price {
   display: flex;
   align-items: baseline;
   gap: 12px;
-  margin-bottom: 20px;
+  margin-bottom: 4px;
 }
 
 .price-now {
   font-size: 32px;
   font-weight: 600;
   color: var(--ink-900);
+}
+
+.price-bs-large {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 18px;
+  flex-wrap: wrap;
+}
+
+.bs-amount {
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--rose-600);
+  letter-spacing: 0.01em;
+}
+
+.bs-rate-tag {
+  font-size: 11.5px;
+  background: #fff5f7;
+  border: 1px solid var(--rose-200, #f3c6d2);
+  color: var(--ink-600);
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-weight: 500;
+}
+
+.subtotal-group {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.subtotal-bs {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--rose-600);
 }
 
 .price-old {

@@ -1,14 +1,42 @@
 <script setup>
-import { ref } from 'vue'
+import { ref, watch, onUnmounted } from 'vue'
 import { useCartStore } from '@/store/cart'
 import { useCatalogStore } from '@/store/catalog'
+import { useCurrencyStore } from '@/store/currency'
 import AppIcon from '@/components/AppIcon.vue'
 import { formatPrice } from '@/utils/format'
 
 const cart = useCartStore()
 const catalog = useCatalogStore()
+const currency = useCurrencyStore()
 const couponCode = ref('')
 const couponError = ref('')
+
+// Bloqueo estricto del scroll de fondo para móviles y escritorio
+watch(
+  () => cart.drawerOpen,
+  (isOpen) => {
+    if (typeof document === 'undefined') return
+    if (isOpen) {
+      document.documentElement.style.overflow = 'hidden'
+      document.body.style.overflow = 'hidden'
+      document.body.style.overscrollBehavior = 'none'
+    } else {
+      document.documentElement.style.overflow = ''
+      document.body.style.overflow = ''
+      document.body.style.overscrollBehavior = ''
+    }
+  },
+  { immediate: true },
+)
+
+onUnmounted(() => {
+  if (typeof document !== 'undefined') {
+    document.documentElement.style.overflow = ''
+    document.body.style.overflow = ''
+    document.body.style.overscrollBehavior = ''
+  }
+})
 
 function getRemainingStock(item) {
   const prod = catalog.products.find((p) => p.id === item.id)
@@ -26,7 +54,7 @@ async function applyCoupon() {
 
 <template>
   <transition name="fade">
-    <div v-if="cart.drawerOpen" class="cart-overlay" @click="cart.toggleDrawer(false)"></div>
+    <div v-if="cart.drawerOpen" class="cart-overlay" @click="cart.toggleDrawer(false)" @touchmove.prevent></div>
   </transition>
 
   <transition name="slide-right">
@@ -49,6 +77,9 @@ async function applyCoupon() {
                 {{ formatPrice(item.originalPrice) }}
               </span>
               <span v-if="item.discount" class="cart-item-discount">-{{ item.discount }}%</span>
+            </div>
+            <div v-if="currency.effectiveRate" class="cart-item-bs">
+              Bs. {{ currency.formatBsNum(item.price * item.qty) }}
             </div>
 
             <!-- Mostrar cuántas quedan en stock de forma dinámica -->
@@ -125,8 +156,17 @@ async function applyCoupon() {
             <strong class="savings-amount">-{{ cart.formattedTotalSavings }}</strong>
           </div>
           <div class="cart-total">
-            <span>Total</span>
-            <strong>{{ cart.formattedTotal }}</strong>
+            <span>Total a pagar</span>
+            <div class="cart-total-block">
+              <strong class="total-usd">{{ cart.formattedTotal }}</strong>
+              <span v-if="currency.effectiveRate" class="cart-total-bs">
+                Bs. {{ currency.formatBsNum(cart.total) }}
+              </span>
+            </div>
+          </div>
+          <div v-if="currency.effectiveRate" class="cart-rate-badge" title="Tasa oficial BCV actualizada al momento vía DolarVZLA">
+            <span class="rate-live-dot"></span>
+            <span>Tasa BCV del momento: <strong>{{ currency.formattedRate }}</strong></span>
           </div>
         </div>
 
@@ -148,29 +188,36 @@ async function applyCoupon() {
 .cart-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(61, 42, 49, 0.45);
+  background: rgba(40, 25, 32, 0.55);
+  backdrop-filter: blur(2px);
   z-index: 80;
+  touch-action: none;
+  overscroll-behavior: contain;
 }
 
 .cart-drawer {
   position: fixed;
   top: 0;
   right: 0;
-  height: 100%;
-  width: 420px;
+  height: 100vh;
+  height: 100dvh;
+  width: 440px;
   max-width: 100%;
   background: var(--white);
   z-index: 90;
   display: flex;
   flex-direction: column;
-  box-shadow: var(--shadow-lg);
+  box-shadow: -4px 0 25px rgba(0, 0, 0, 0.15);
+  overscroll-behavior: contain;
+  touch-action: pan-y;
 }
 
 .cart-head {
+  flex-shrink: 0;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 20px 24px;
+  padding: 18px 22px;
   background: #111111;
   color: #ffffff;
   border-bottom: 1px solid #222222;
@@ -205,7 +252,27 @@ async function applyCoupon() {
 .cart-body {
   flex: 1;
   overflow-y: auto;
-  padding: 20px 24px;
+  overflow-x: hidden;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  padding: 20px 22px;
+}
+
+.cart-body::-webkit-scrollbar {
+  width: 5px;
+}
+
+.cart-body::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.cart-body::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.15);
+  border-radius: 4px;
+}
+
+.cart-body::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 0, 0, 0.25);
 }
 
 .cart-item {
@@ -372,9 +439,22 @@ async function applyCoupon() {
 }
 
 .cart-foot {
+  flex-shrink: 0;
   border-top: 1px solid #eeeeee;
-  padding: 20px 24px 24px;
+  padding: 18px 22px 22px;
   background: #ffffff;
+  overscroll-behavior: contain;
+  overflow-y: auto;
+  max-height: 58vh;
+}
+
+.cart-foot::-webkit-scrollbar {
+  width: 4px;
+}
+
+.cart-foot::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.12);
+  border-radius: 4px;
 }
 
 .coupon-row {
@@ -486,10 +566,10 @@ async function applyCoupon() {
 
 .cart-total {
   display: flex;
-  align-items: baseline;
+  align-items: center;
   justify-content: space-between;
   margin-top: 10px;
-  padding-top: 8px;
+  padding-top: 10px;
   border-top: 1px dashed #e0e0e0;
   font-family: var(--font-body);
   font-size: 14px;
@@ -499,12 +579,70 @@ async function applyCoupon() {
   color: #111111;
 }
 
+.cart-item-bs {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--rose-600);
+  margin-top: 1px;
+}
+
+.cart-total-block {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+}
+
 .cart-total strong {
   font-family: var(--font-body);
-  font-size: 26px;
+  font-size: 24px;
   font-weight: 700;
   color: #111111;
   letter-spacing: -0.01em;
+  line-height: 1;
+}
+
+.cart-total-bs {
+  font-size: 14.5px;
+  font-weight: 700;
+  color: var(--rose-600);
+  letter-spacing: 0.01em;
+}
+
+.cart-rate-badge {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  background: #fff5f7;
+  border: 1px solid var(--rose-200, #f3c6d2);
+  border-radius: 8px;
+  padding: 6px 10px;
+  margin-top: 10px;
+  font-size: 11.5px;
+  color: var(--ink-700);
+}
+
+.cart-rate-badge strong {
+  color: var(--rose-600);
+  font-weight: 700;
+}
+
+.rate-live-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #10b981;
+  box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.35);
+  animation: pulse-rate-dot 2s infinite;
+  display: inline-block;
+  flex-shrink: 0;
+}
+
+@keyframes pulse-rate-dot {
+  0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7); }
+  70% { transform: scale(1); box-shadow: 0 0 0 4px rgba(16, 185, 129, 0); }
+  100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
 }
 
 .cart-checkout {
@@ -576,5 +714,51 @@ async function applyCoupon() {
 .slide-right-enter-from,
 .slide-right-leave-to {
   transform: translateX(100%);
+}
+
+@media (max-width: 480px) {
+  .cart-drawer {
+    width: 100vw;
+    width: 100%;
+  }
+
+  .cart-head {
+    padding: 14px 16px;
+  }
+
+  .cart-body {
+    padding: 16px 14px;
+  }
+
+  .cart-item {
+    grid-template-columns: 68px 1fr 24px;
+    gap: 12px;
+    padding-bottom: 14px;
+    margin-bottom: 14px;
+  }
+
+  .cart-item img {
+    width: 68px;
+    height: 68px;
+  }
+
+  .cart-name {
+    font-size: 13px;
+  }
+
+  .cart-foot {
+    padding: 14px 16px 18px;
+    max-height: 52vh;
+  }
+
+  .cart-checkout {
+    padding: 13px;
+    font-size: 12px;
+  }
+
+  .cart-receipt {
+    padding: 11px;
+    font-size: 11.5px;
+  }
 }
 </style>

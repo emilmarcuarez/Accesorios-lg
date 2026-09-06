@@ -396,6 +396,24 @@ async function remove(product) {
   .filter-select,
   .search-input {
     width: 100%;
+    box-sizing: border-box;
+  }
+}
+
+@media (max-width: 600px) {
+  .prod-cell {
+    gap: 8px;
+  }
+  .prod-cell strong {
+    font-size: 13px;
+  }
+  .thumb {
+    width: 38px;
+    height: 38px;
+  }
+  .status {
+    padding: 2px 8px;
+    font-size: 11px;
   }
 }
 </style>

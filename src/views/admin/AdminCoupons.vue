@@ -553,9 +553,18 @@ async function toggle(coupon) {
   .search-box,
   .search-input {
     width: 100%;
+    box-sizing: border-box;
   }
   .uses-input-row {
     flex-wrap: wrap;
+  }
+}
+
+@media (max-width: 480px) {
+  .uses-number-input,
+  .exp-date-input {
+    width: 100%;
+    box-sizing: border-box;
   }
 }
 </style>

@@ -1593,9 +1593,30 @@ async function handleCreateUser() {
   }
   .search-box {
     min-width: 100%;
+    width: 100%;
+    box-sizing: border-box;
   }
   .form-row {
     grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 600px) {
+  .modal-actions,
+  .modal-actions.space-between {
+    flex-direction: column-reverse;
+    gap: 8px;
+    align-items: stretch;
+  }
+  .modal-actions button,
+  .btn-cancel,
+  .btn-save-modal {
+    width: 100%;
+    justify-content: center;
+  }
+  .actions-group {
+    flex-direction: column;
+    gap: 4px;
   }
 }
 </style>

@@ -9,3 +9,11 @@ export function formatNumber(value) {
     maximumFractionDigits: Number.isInteger(value) ? 0 : 2,
   }).format(value)
 }
+
+export function formatBs(valueInBs) {
+  return `Bs. ${new Intl.NumberFormat('es-VE', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(Number(valueInBs) || 0)}`
+}
+

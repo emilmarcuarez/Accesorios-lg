@@ -1655,5 +1655,57 @@ function restoreDefaults() {
   .preview-hero-title {
     font-size: 22px;
   }
+  .preview-card {
+    flex-direction: column;
+  }
+  .preview-media {
+    width: 100%;
+    height: 150px;
+  }
+}
+
+@media (max-width: 600px) {
+  .banner-header-with-toggle {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+  }
+  .toolbar-actions {
+    width: 100%;
+  }
+  .save-btn {
+    width: 100%;
+    justify-content: center;
+  }
+  .image-row {
+    flex-wrap: wrap;
+  }
+  .upload-actions {
+    width: 100%;
+  }
+  .upload-button {
+    width: 100%;
+    justify-content: center;
+    box-sizing: border-box;
+  }
+  .video-action-row {
+    flex-direction: column;
+    width: 100%;
+  }
+  .video-btn,
+  .btn-delete-video {
+    width: 100%;
+    justify-content: center;
+    box-sizing: border-box;
+  }
+  .video-active-preview {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  .mini-video-thumb {
+    width: 100%;
+    height: auto;
+    aspect-ratio: 16/9;
+  }
 }
 </style>

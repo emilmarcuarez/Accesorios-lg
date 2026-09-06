@@ -281,6 +281,7 @@ async function onFile(event) {
   display: flex;
   align-items: center;
   gap: 12px;
+  flex-wrap: wrap;
 }
 
 .upload-preview {
@@ -470,6 +471,19 @@ async function onFile(event) {
   .search-box,
   .search-input {
     width: 100%;
+    box-sizing: border-box;
+  }
+}
+
+@media (max-width: 480px) {
+  .upload-btn {
+    width: 100%;
+    justify-content: center;
+    box-sizing: border-box;
+  }
+  .thumb {
+    width: 38px;
+    height: 38px;
   }
 }
 </style>

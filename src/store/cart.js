@@ -3,6 +3,7 @@ import { STORE } from '@/config'
 import { formatPrice, formatNumber } from '@/utils/format'
 import { supabase } from '@/lib/supabase'
 import { useAuthStore } from '@/store/auth'
+import { useCurrencyStore } from '@/store/currency'
 import {
   insertOrder,
   listCoupons,
@@ -189,11 +190,20 @@ export const useCartStore = defineStore('cart', {
       this.coupon = null
     },
     buildMessage(orderCode = null) {
+      const currency = useCurrencyStore()
+      const rate = currency.effectiveRate
+      const formattedRate = currency.formattedRate
       const divider = '--------------------------------'
       const origin = typeof window !== 'undefined' ? window.location.origin : ''
+
       const itemsLines = this.items.map((item, index) => {
         const hasDisc = (Number(item.discount) || 0) > 0
         const origPrice = Number(item.originalPrice) || Number(item.price)
+        const unitUsd = Number(item.price)
+        const lineUsd = unitUsd * item.qty
+        const unitBs = currency.formatBsNum(unitUsd)
+        const lineBs = currency.formatBsNum(lineUsd)
+
         const discLine = hasDisc
           ? `    Descuento: -${item.discount}% (Reg: ${formatPrice(origPrice)})\n`
           : ''
@@ -202,16 +212,21 @@ export const useCartStore = defineStore('cart', {
         return [
           `${index + 1}) *${item.name}*`,
           `    Cantidad: ${item.qty}`,
-          discLine + `    Precio unitario: ${formatPrice(item.price)}`,
-          `    Subtotal: ${formatPrice(item.price * item.qty)}`,
+          discLine + `    Precio unitario: ${formatPrice(unitUsd)} (Bs. ${unitBs})`,
+          `    Subtotal: ${formatPrice(lineUsd)} (Bs. ${lineBs})`,
           linkLine,
         ].filter(Boolean).join('\n')
       })
 
+      const totalUsd = this.total
+      const totalBs = currency.formatBsNum(totalUsd)
+      const savingsUsd = this.totalSavings
+      const savingsBs = currency.formatBsNum(savingsUsd)
+
       const savingsLines =
         this.totalSavings > 0
           ? [
-              `*Ahorro total:* ${this.formattedTotalSavings}`,
+              `*Ahorro total:* ${this.formattedTotalSavings} (Bs. ${savingsBs})`,
               divider,
             ]
           : []
@@ -219,7 +234,7 @@ export const useCartStore = defineStore('cart', {
       const couponLines = this.coupon
         ? [
             `Cupón: ${this.coupon.code} (-${this.coupon.discount}%)`,
-            `Descuento cupón: -${formatPrice(this.discountAmount)}`,
+            `Descuento cupón: -${formatPrice(this.discountAmount)} (Bs. ${currency.formatBsNum(this.discountAmount)})`,
             divider,
           ]
         : []
@@ -231,12 +246,13 @@ export const useCartStore = defineStore('cart', {
         '_Nuevo pedido / Solicitud de compra_',
         divider,
         codeHeader + `Fecha: ${new Date().toLocaleDateString('es-VE')}`,
+        `*Tasa BCV del momento:* ${formattedRate} / USD`,
         divider,
       ]
 
       const subtotalRegularLine =
         this.itemsDiscountTotal > 0
-          ? [`Subtotal regular: ${this.formattedRegularSubtotal}`]
+          ? [`Subtotal regular: ${this.formattedRegularSubtotal} (Bs. ${currency.formatBsNum(this.regularSubtotal)})`]
           : []
 
       const footer = [
@@ -244,8 +260,11 @@ export const useCartStore = defineStore('cart', {
         ...subtotalRegularLine,
         ...couponLines,
         ...savingsLines,
-        `*TOTAL A PAGAR: ${this.formattedTotal}*`,
+        `*TOTAL A PAGAR:*`,
+        `👉 *USD: ${this.formattedTotal}*`,
+        `👉 *BOLÍVARES (Bs.): Bs. ${totalBs}*`,
         divider,
+        `_(Monto en Bs. calculado a la tasa oficial BCV: ${formattedRate} / USD)_`,
         '_Gracias por confiar en nosotros_',
       ]
 
@@ -702,6 +721,17 @@ export const useCartStore = defineStore('cart', {
             <span>Total a pagar</span>
             <span class="amount">${formatPrice(finalTotal)}</span>
           </div>
+          ${
+            currency.effectiveRate
+              ? `<div class="tot-row" style="margin-top: 8px; padding-top: 8px; border-top: 1px dashed #f1e2e6; font-size: 15px; font-weight: 700; color: #b83253;">
+                  <span>Total en Bolívares (Bs.)</span>
+                  <span>Bs. ${currency.formatBsNum(finalTotal)}</span>
+                </div>
+                <div style="font-size: 11px; color: #888; text-align: right; margin-top: 3px;">
+                  Tasa oficial BCV aplicada: ${currency.formattedRate} / USD
+                </div>`
+              : ''
+          }
         </div>
       </div>
 

@@ -1,10 +1,11 @@
 <script setup>
-import { ref, computed, onMounted } from 'vue'
-import { useRouter } from 'vue-router'
+import { ref, computed, onMounted, watch, onUnmounted } from 'vue'
+import { useRouter, useRoute } from 'vue-router'
 import { useCartStore } from '@/store/cart'
 import { useAuthStore } from '@/store/auth'
 import { useFavoritesStore } from '@/store/favorites'
 import { useSettingsStore } from '@/store/settings'
+import { useCurrencyStore } from '@/store/currency'
 import AppIcon from '@/components/AppIcon.vue'
 import { STORE } from '@/config'
 import { formatPrice } from '@/utils/format'
@@ -13,12 +14,40 @@ const cart = useCartStore()
 const auth = useAuthStore()
 const favorites = useFavoritesStore()
 const settings = useSettingsStore()
+const currency = useCurrencyStore()
 const router = useRouter()
+const route = useRoute()
 const menuOpen = ref(false)
 const query = ref('')
 
+const isShopPage = computed(() => {
+  return route.path === '/tienda' || route.path.startsWith('/tienda/')
+})
+
+watch(menuOpen, (isOpen) => {
+  if (typeof document === 'undefined') return
+  if (isOpen) {
+    document.documentElement.style.overflow = 'hidden'
+    document.body.style.overflow = 'hidden'
+    document.body.style.overscrollBehavior = 'none'
+  } else if (!cart.drawerOpen) {
+    document.documentElement.style.overflow = ''
+    document.body.style.overflow = ''
+    document.body.style.overscrollBehavior = ''
+  }
+})
+
+onUnmounted(() => {
+  if (typeof document !== 'undefined') {
+    document.documentElement.style.overflow = ''
+    document.body.style.overflow = ''
+    document.body.style.overscrollBehavior = ''
+  }
+})
+
 onMounted(() => {
   settings.fetch()
+  currency.init()
 })
 
 const topBarVisible = computed(() => settings.topBar?.enabled !== false)
@@ -70,11 +99,16 @@ function goFavorites() {
 
 <template>
   <div class="header-wrap">
-    <div v-if="topBarVisible && (topBarText1 || topBarText2)" class="promo-bar">
+    <div v-if="topBarVisible && (topBarText1 || topBarText2 || currency.effectiveRate)" class="promo-bar">
       <div class="container promo-inner">
         <p v-if="topBarText1">{{ topBarText1 }}</p>
         <span v-if="topBarText1 && topBarText2" class="promo-sep"></span>
         <p v-if="topBarText2">{{ topBarText2 }}</p>
+        <span v-if="(topBarText1 || topBarText2) && currency.effectiveRate" class="promo-sep"></span>
+        <div v-if="currency.effectiveRate" class="rate-promo-pill" title="Tasa oficial BCV actualizada en tiempo real vía DolarVZLA">
+          <span class="rate-live-dot"></span>
+          <span>Tasa BCV: <strong>{{ currency.formattedRate }}</strong></span>
+        </div>
       </div>
     </div>
 
@@ -95,10 +129,17 @@ function goFavorites() {
           </router-link>
         </nav>
 
-        <form class="search" @submit.prevent="submitSearch">
+        <form v-if="!isShopPage" class="search" @submit.prevent="submitSearch">
           <AppIcon name="search" :size="18" />
           <input v-model="query" type="text" placeholder="Buscar..." />
         </form>
+        <div v-else class="search-spacer"></div>
+
+        <div v-if="currency.effectiveRate" class="header-rate-badge" title="Tasa oficial BCV del día (DolarVZLA)">
+          <span class="rate-live-dot"></span>
+          <span class="rate-tag-text">Tasa BCV</span>
+          <strong class="rate-val-text">{{ currency.formattedRate }}</strong>
+        </div>
 
         <div class="actions">
           <button class="action-btn" aria-label="Cuenta" @click="goAccount">
@@ -127,10 +168,11 @@ function goFavorites() {
         <router-link to="/" class="brand brand-mobile" @click="menuOpen = false">
           <img src="/img/logo.png" class="brand-logo" alt="Detallitos" />
         </router-link>
-        <form class="search search-mobile" @submit.prevent="submitSearch">
+        <form v-if="!isShopPage" class="search search-mobile" @submit.prevent="submitSearch">
           <AppIcon name="search" :size="18" />
           <input v-model="query" type="text" placeholder="Buscar..." />
         </form>
+        <div v-else class="mobile-spacer"></div>
         <div class="mobile-actions">
           <button class="icon-btn" aria-label="Cuenta" @click="goAccount">
             <AppIcon name="user" :size="21" />
@@ -143,8 +185,14 @@ function goFavorites() {
       </div>
     </div>
 
+    <!-- Tira de tasa móvil -->
+    <div v-if="currency.effectiveRate" class="mobile-rate-strip">
+      <span class="rate-live-dot"></span>
+      <span>Tasa BCV del momento: <strong>{{ currency.formattedRate }}</strong></span>
+    </div>
+
     <transition name="fade">
-      <div v-if="menuOpen" class="menu-overlay" @click="menuOpen = false"></div>
+      <div v-if="menuOpen" class="menu-overlay" @click="menuOpen = false" @touchmove.prevent></div>
     </transition>
     <transition name="slide">
       <aside v-if="menuOpen" class="drawer">
@@ -156,6 +204,15 @@ function goFavorites() {
             <AppIcon name="close" :size="22" />
           </button>
         </div>
+
+        <div v-if="currency.effectiveRate" class="drawer-rate-box">
+          <span class="rate-live-dot"></span>
+          <div>
+            <div class="drawer-rate-title">Tasa Oficial BCV</div>
+            <div class="drawer-rate-sub">{{ currency.rateText }}</div>
+          </div>
+        </div>
+
         <nav class="drawer-nav">
           <button
             v-for="link in navLinks"
@@ -327,6 +384,14 @@ function goFavorites() {
   width: 100%;
   font-size: 13.5px;
   color: var(--ink-700);
+}
+
+.search-spacer {
+  margin-left: auto;
+}
+
+.mobile-spacer {
+  flex: 1;
 }
 
 .actions {
@@ -504,5 +569,116 @@ function goFavorites() {
 .drawer-user-btn:hover {
   background: var(--rose-100);
   transform: translateX(3px);
+}
+
+/* Indicadores de Tasa BCV */
+.rate-promo-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(255, 255, 255, 0.22);
+  padding: 2px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 500;
+  backdrop-filter: blur(4px);
+}
+
+.rate-promo-pill strong {
+  text-decoration: none !important;
+  font-weight: 700;
+}
+
+.rate-live-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #10b981;
+  box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.35);
+  animation: pulse-rate-dot 2s infinite;
+  display: inline-block;
+  flex-shrink: 0;
+}
+
+@keyframes pulse-rate-dot {
+  0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7); }
+  70% { transform: scale(1); box-shadow: 0 0 0 4px rgba(16, 185, 129, 0); }
+  100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
+}
+
+.header-rate-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: #fff5f7;
+  border: 1px solid var(--rose-200, #f3c6d2);
+  padding: 5px 12px;
+  border-radius: 999px;
+  font-size: 12px;
+  white-space: nowrap;
+  line-height: 1;
+}
+
+.rate-tag-text {
+  color: var(--rose-600);
+  font-weight: 600;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+
+.rate-val-text {
+  color: var(--ink-900);
+  font-weight: 700;
+  font-size: 13px;
+}
+
+.mobile-rate-strip {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  background: #fff5f7;
+  border-bottom: 1px solid rgba(234, 169, 187, 0.35);
+  padding: 6px 12px;
+  font-size: 12px;
+  color: var(--ink-700);
+  text-align: center;
+}
+
+.mobile-rate-strip strong {
+  color: var(--rose-600);
+  font-weight: 700;
+}
+
+.drawer-rate-box {
+  margin: 12px 20px 0;
+  padding: 10px 14px;
+  background: #fff5f7;
+  border: 1px solid var(--rose-200, #f3c6d2);
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.drawer-rate-title {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  font-weight: 700;
+  color: var(--rose-600);
+}
+
+.drawer-rate-sub {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--ink-900);
+}
+
+@media (min-width: 901px) {
+  .mobile-rate-strip {
+    display: none;
+  }
 }
 </style>

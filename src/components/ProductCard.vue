@@ -3,6 +3,7 @@ import { computed } from 'vue'
 import { useCartStore } from '@/store/cart'
 import { useFavoritesStore } from '@/store/favorites'
 import { useSettingsStore } from '@/store/settings'
+import { useCurrencyStore } from '@/store/currency'
 import AppIcon from '@/components/AppIcon.vue'
 import { formatPrice } from '@/utils/format'
 import { resolveImage } from '@/utils/image'
@@ -14,6 +15,7 @@ const props = defineProps({
 const cart = useCartStore()
 const favorites = useFavoritesStore()
 const settings = useSettingsStore()
+const currency = useCurrencyStore()
 
 settings.fetch()
 
@@ -54,11 +56,16 @@ const remainingStock = computed(() => {
         {{ product.name }}
       </router-link>
       <div class="price-wrap">
-        <div class="price">
-          <span class="price-now">{{ formatPrice(product.price) }}</span>
-          <span v-if="product.oldPrice && product.oldPrice > product.price" class="price-old">
-            {{ formatPrice(product.oldPrice) }}
-          </span>
+        <div class="price-block">
+          <div class="price">
+            <span class="price-now">{{ formatPrice(product.price) }}</span>
+            <span v-if="product.oldPrice && product.oldPrice > product.price" class="price-old">
+              {{ formatPrice(product.oldPrice) }}
+            </span>
+          </div>
+          <div v-if="currency.effectiveRate" class="price-bs">
+            Bs. {{ currency.formatBsNum(product.price) }}
+          </div>
         </div>
         <span v-if="product.discount" class="discount-badge">-{{ product.discount }}%</span>
       </div>
@@ -245,6 +252,12 @@ const remainingStock = computed(() => {
   color: #666666;
 }
 
+.price-block {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
 .price {
   display: flex;
   align-items: baseline;
@@ -262,6 +275,14 @@ const remainingStock = computed(() => {
   font-size: 13px;
   color: #999999;
   text-decoration: line-through;
+}
+
+.price-bs {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--rose-600);
+  letter-spacing: 0.01em;
+  line-height: 1.2;
 }
 
 .card-stock {

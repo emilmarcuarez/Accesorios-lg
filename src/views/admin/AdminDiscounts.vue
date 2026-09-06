@@ -909,6 +909,13 @@ async function removeDiscount(item) {
   }
   .search-input {
     width: 100%;
+    box-sizing: border-box;
+  }
+}
+
+@media (max-width: 500px) {
+  .type-toggle {
+    grid-template-columns: 1fr;
   }
 }
 </style>
