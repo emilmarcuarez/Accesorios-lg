@@ -135,12 +135,6 @@ function goFavorites() {
         </form>
         <div v-else class="search-spacer"></div>
 
-        <div v-if="currency.effectiveRate" class="header-rate-badge" title="Tasa oficial BCV del día (DolarVZLA)">
-          <span class="rate-live-dot"></span>
-          <span class="rate-tag-text">Tasa BCV</span>
-          <strong class="rate-val-text">{{ currency.formattedRate }}</strong>
-        </div>
-
         <div class="actions">
           <button class="action-btn" aria-label="Cuenta" @click="goAccount">
             <AppIcon name="user" :size="20" />
@@ -183,12 +177,6 @@ function goFavorites() {
           </button>
         </div>
       </div>
-    </div>
-
-    <!-- Tira de tasa móvil -->
-    <div v-if="currency.effectiveRate" class="mobile-rate-strip">
-      <span class="rate-live-dot"></span>
-      <span>Tasa BCV del momento: <strong>{{ currency.formattedRate }}</strong></span>
     </div>
 
     <transition name="fade">
@@ -260,8 +248,21 @@ function goFavorites() {
 
 .promo-sep {
   width: 1px;
-  height: 16px;
-  background: rgba(255, 255, 255, 0.5);
+  height: 14px;
+  background: rgba(255, 255, 255, 0.45);
+  display: inline-block;
+  flex-shrink: 0;
+}
+
+@media (max-width: 900px) {
+  .promo-sep {
+    display: none !important;
+  }
+  .promo-inner {
+    flex-direction: column;
+    gap: 6px;
+    padding: 2px 12px;
+  }
 }
 
 .promo-inner strong {
@@ -571,17 +572,19 @@ function goFavorites() {
   transform: translateX(3px);
 }
 
-/* Indicadores de Tasa BCV */
+/* Indicador de Tasa BCV en barra negra */
 .rate-promo-pill {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  background: rgba(255, 255, 255, 0.22);
-  padding: 2px 10px;
-  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.16);
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  padding: 3px 10px;
+  border-radius: 2px;
   font-size: 12px;
   font-weight: 500;
   backdrop-filter: blur(4px);
+  letter-spacing: 0.02em;
 }
 
 .rate-promo-pill strong {
@@ -604,51 +607,6 @@ function goFavorites() {
   0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7); }
   70% { transform: scale(1); box-shadow: 0 0 0 4px rgba(16, 185, 129, 0); }
   100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
-}
-
-.header-rate-badge {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  background: #fff5f7;
-  border: 1px solid var(--rose-200, #f3c6d2);
-  padding: 5px 12px;
-  border-radius: 999px;
-  font-size: 12px;
-  white-space: nowrap;
-  line-height: 1;
-}
-
-.rate-tag-text {
-  color: var(--rose-600);
-  font-weight: 600;
-  font-size: 11px;
-  text-transform: uppercase;
-  letter-spacing: 0.3px;
-}
-
-.rate-val-text {
-  color: var(--ink-900);
-  font-weight: 700;
-  font-size: 13px;
-}
-
-.mobile-rate-strip {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 7px;
-  background: #fff5f7;
-  border-bottom: 1px solid rgba(234, 169, 187, 0.35);
-  padding: 6px 12px;
-  font-size: 12px;
-  color: var(--ink-700);
-  text-align: center;
-}
-
-.mobile-rate-strip strong {
-  color: var(--rose-600);
-  font-weight: 700;
 }
 
 .drawer-rate-box {
