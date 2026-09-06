@@ -1,9 +1,10 @@
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useCartStore } from '@/store/cart'
 import { useAuthStore } from '@/store/auth'
 import { useFavoritesStore } from '@/store/favorites'
+import { useSettingsStore } from '@/store/settings'
 import AppIcon from '@/components/AppIcon.vue'
 import { STORE } from '@/config'
 import { formatPrice } from '@/utils/format'
@@ -11,9 +12,28 @@ import { formatPrice } from '@/utils/format'
 const cart = useCartStore()
 const auth = useAuthStore()
 const favorites = useFavoritesStore()
+const settings = useSettingsStore()
 const router = useRouter()
 const menuOpen = ref(false)
 const query = ref('')
+
+onMounted(() => {
+  settings.fetch()
+})
+
+const topBarVisible = computed(() => settings.topBar?.enabled !== false)
+const topBarText1 = computed(() => {
+  if (settings.topBar?.text1 !== undefined && settings.topBar?.text1 !== null && settings.topBar?.text1 !== '') {
+    return settings.topBar.text1
+  }
+  return `Envío GRATIS en compras superiores a ${formatPrice(STORE.freeShipping)}`
+})
+const topBarText2 = computed(() => {
+  if (settings.topBar?.text2 !== undefined && settings.topBar?.text2 !== null) {
+    return settings.topBar.text2
+  }
+  return `10% OFF en tu primera compra con el código: ${STORE.coupon}`
+})
 
 const navLinks = [
   { label: 'Inicio', to: '/' },
@@ -51,16 +71,16 @@ function goFavorites() {
 
 <template>
   <div class="header-wrap">
-    <div class="promo-bar">
+    <div v-if="topBarVisible && (topBarText1 || topBarText2)" class="promo-bar">
       <div class="container promo-inner">
-        <p>Envío GRATIS en compras superiores a {{ formatPrice(STORE.freeShipping) }}</p>
-        <span class="promo-sep"></span>
-        <p>10% OFF en tu primera compra con el código: <strong>{{ STORE.coupon }}</strong></p>
+        <p v-if="topBarText1">{{ topBarText1 }}</p>
+        <span v-if="topBarText1 && topBarText2" class="promo-sep"></span>
+        <p v-if="topBarText2">{{ topBarText2 }}</p>
       </div>
     </div>
 
     <header class="header">
-      <div class="container header-inner">
+      <div class="container-fluid header-inner">
         <router-link to="/" class="brand" @click="menuOpen = false">
           <img src="/img/logo.png" class="brand-logo" alt="Detallitos" />
         </router-link>
@@ -112,10 +132,15 @@ function goFavorites() {
           <AppIcon name="search" :size="18" />
           <input v-model="query" type="text" placeholder="Buscar..." />
         </form>
-        <button class="icon-btn" aria-label="Carrito" @click="cart.toggleDrawer(true)">
-          <AppIcon name="bag" :size="22" />
-          <span v-if="cart.count" class="badge">{{ cart.count }}</span>
-        </button>
+        <div class="mobile-actions">
+          <button class="icon-btn" aria-label="Cuenta" @click="goAccount">
+            <AppIcon name="user" :size="21" />
+          </button>
+          <button class="icon-btn" aria-label="Carrito" @click="cart.toggleDrawer(true)">
+            <AppIcon name="bag" :size="21" />
+            <span v-if="cart.count" class="badge">{{ cart.count }}</span>
+          </button>
+        </div>
       </div>
     </div>
 
@@ -142,6 +167,16 @@ function goFavorites() {
             {{ link.label }}
           </button>
         </nav>
+        <div class="drawer-user-section">
+          <button class="drawer-user-btn" @click="goAccount">
+            <AppIcon name="user" :size="18" />
+            <span>{{ auth.isAuthenticated ? (auth.fullName || 'Mi Cuenta') : 'Mi Cuenta / Iniciar Sesión' }}</span>
+          </button>
+          <button class="drawer-user-btn" @click="goFavorites">
+            <AppIcon name="heart" :size="18" />
+            <span>Favoritos {{ favorites.count ? `(${favorites.count})` : '' }}</span>
+          </button>
+        </div>
       </aside>
     </transition>
   </div>
@@ -149,10 +184,13 @@ function goFavorites() {
 
 <style scoped>
 .promo-bar {
-  background: var(--rose-gradient);
-  color: var(--white);
-  font-size: 12.5px;
-  padding: 9px 0;
+  background: #111111;
+  color: #ffffff;
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  padding: 10px 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
 }
 
 .promo-inner {
@@ -175,19 +213,28 @@ function goFavorites() {
   font-weight: 600;
 }
 
+.header-wrap {
+  background: #ffffff;
+  width: 100%;
+}
+
 .header {
   position: sticky;
   top: 0;
   z-index: 40;
+  background: #ffffff;
+  width: 100%;
+  border-bottom: 1px solid rgba(234, 169, 187, 0.25);
+  box-shadow: 0 2px 12px rgba(180, 90, 112, 0.04);
 }
 
 .header-inner {
   display: flex;
   align-items: center;
-  gap: 28px;
-  padding: 18px 20px;
-  background: rgba(255, 253, 251, 0.9);
-  backdrop-filter: blur(12px);
+  gap: clamp(20px, 2.5vw, 40px);
+  padding-top: 16px;
+  padding-bottom: 16px;
+  background: #ffffff;
 }
 
 .brand {
@@ -221,7 +268,7 @@ function goFavorites() {
 
 .nav {
   display: flex;
-  gap: 22px;
+  gap: clamp(16px, 1.8vw, 30px);
 }
 
 .nav-link {
@@ -259,17 +306,19 @@ function goFavorites() {
   display: flex;
   align-items: center;
   gap: 10px;
-  background: var(--rose-50);
-  border: 1px solid var(--line);
-  border-radius: var(--radius-full);
-  padding: 11px 20px;
+  background: #ffffff;
+  border: 1px solid rgba(234, 169, 187, 0.45);
+  border-radius: 2px;
+  padding: 10px 18px;
   margin-left: auto;
   color: var(--ink-400);
+  transition: all 0.2s ease;
 }
 
 .search:focus-within {
-  border-color: var(--rose-300);
-  background: var(--white);
+  border-color: #111111;
+  box-shadow: 0 0 0 1px #111111;
+  background: #ffffff;
 }
 
 .search input {
@@ -401,9 +450,8 @@ function goFavorites() {
     position: sticky;
     top: 0;
     z-index: 40;
-    background: rgba(255, 253, 251, 0.96);
-    backdrop-filter: blur(12px);
-    border-bottom: 1px solid var(--line);
+    background: #ffffff;
+    border-bottom: 1px solid rgba(234, 169, 187, 0.25);
   }
   .mobile-inner {
     display: flex;
@@ -424,5 +472,38 @@ function goFavorites() {
   .brand-mobile {
     flex: 0 0 auto;
   }
+  .mobile-actions {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+}
+
+.drawer-user-section {
+  margin-top: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.drawer-user-btn {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: var(--rose-50);
+  color: var(--rose-600);
+  font-size: 14px;
+  font-weight: 600;
+  border: 1px solid var(--rose-200);
+  text-align: left;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.drawer-user-btn:hover {
+  background: var(--rose-100);
+  transform: translateX(3px);
 }
 </style>

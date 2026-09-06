@@ -369,4 +369,29 @@ async function remove(product) {
 .admin-actions.right {
   justify-content: flex-end;
 }
+
+@media (max-width: 768px) {
+  .filter-bar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .tabs {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+  .tab-btn {
+    flex: 1 1 auto;
+    text-align: center;
+  }
+  .filter-tools {
+    flex-direction: column;
+    align-items: stretch;
+    width: 100%;
+  }
+  .filter-select,
+  .search-input {
+    width: 100%;
+  }
+}
 </style>

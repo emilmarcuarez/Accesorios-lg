@@ -12,7 +12,7 @@ onMounted(() => catalog.fetch())
 
 <template>
   <main>
-    <section class="cat-hero">
+    <section class="cat-hero" data-aos="fade-down">
       <div class="container">
         <p class="crumbs">Inicio / Categorías</p>
         <span class="eyebrow">Detallitos Accesorios</span>
@@ -23,10 +23,12 @@ onMounted(() => catalog.fetch())
 
     <section class="container cat-grid-wrap">
       <router-link
-        v-for="cat in categories"
+        v-for="(cat, index) in categories"
         :key="cat.slug"
         :to="`/tienda/${cat.slug}`"
         class="cat-card"
+        data-aos="fade-up"
+        :data-aos-delay="Math.min(index * 60, 450)"
       >
         <div class="cat-image">
           <img
@@ -46,7 +48,7 @@ onMounted(() => catalog.fetch())
 
     <section class="cat-banner">
       <div class="container">
-        <div class="cat-banner-inner">
+        <div class="cat-banner-inner" data-aos="zoom-in-up">
           <div>
             <span class="eyebrow">El regalo perfecto</span>
             <h2 class="cb-title">Detalles que te hacen brillar</h2>
@@ -64,32 +66,34 @@ onMounted(() => catalog.fetch())
 
 <style scoped>
 .cat-hero {
-  background: var(--rose-gradient);
-  color: var(--white);
+  background: linear-gradient(180deg, #fff7f9 0%, #ffffff 100%);
+  border-bottom: 1.5px solid var(--rose-200, #f3c6d2);
+  color: var(--ink-900);
   padding: 56px 0;
   text-align: center;
 }
 
 .crumbs {
   font-size: 13px;
-  opacity: 0.9;
+  color: var(--rose-600);
   margin-bottom: 12px;
 }
 
 .cat-hero .eyebrow {
-  color: rgba(255, 255, 255, 0.9);
+  color: var(--rose-600);
 }
 
 .cat-title {
   font-family: var(--font-display);
   font-size: clamp(40px, 7vw, 64px);
   font-weight: 600;
+  color: var(--ink-900);
 }
 
 .cat-sub {
   margin-top: 8px;
   font-size: 15px;
-  opacity: 0.95;
+  color: var(--ink-500);
   max-width: 520px;
   margin-left: auto;
   margin-right: auto;
@@ -177,13 +181,14 @@ onMounted(() => catalog.fetch())
 }
 
 .cat-banner {
-  background: var(--rose-50);
+  background: transparent;
   padding: 40px 0 70px;
 }
 
 .cat-banner-inner {
   background: var(--white);
-  border: 1px solid var(--line);
+  border: 1.5px solid var(--rose-300, #eaa9bb);
+  box-shadow: 0 8px 24px rgba(217, 109, 139, 0.08);
   border-radius: var(--radius-lg);
   padding: 36px 40px;
   display: flex;

@@ -15,7 +15,7 @@ onMounted(() => {
   <section class="promos">
     <div class="container promo-grid">
       <!-- Banner 1: Estilo Rosa -->
-      <div class="promo-card promo-rose">
+      <div class="promo-card promo-rose" data-aos="fade-right">
         <div class="promo-copy">
           <h3 class="promo-title" style="white-space: pre-line;">{{ settings.banners.banner1.title }}</h3>
           <p class="promo-text">{{ settings.banners.banner1.text }}</p>
@@ -29,7 +29,7 @@ onMounted(() => {
       </div>
 
       <!-- Banner 2: Estilo Crema -->
-      <div class="promo-card promo-cream">
+      <div class="promo-card promo-cream" data-aos="fade-left">
         <div class="promo-copy">
           <h3 class="promo-title" style="white-space: pre-line;">{{ settings.banners.banner2.title }}</h3>
           <p class="promo-text">{{ settings.banners.banner2.text }}</p>
@@ -48,7 +48,8 @@ onMounted(() => {
 
 <style scoped>
 .promos {
-  padding: 40px 0;
+  padding: 55px 0;
+  background: linear-gradient(180deg, rgba(255, 248, 250, 0) 0%, rgba(253, 237, 242, 0.65) 50%, rgba(255, 248, 250, 0) 100%);
 }
 
 .promo-grid {
@@ -60,19 +61,23 @@ onMounted(() => {
 .promo-card {
   display: flex;
   align-items: stretch;
-  border-radius: var(--radius-lg);
+  border-radius: 2px;
   overflow: hidden;
   min-height: 300px;
 }
 
 .promo-rose {
-  background: var(--rose-gradient);
-  color: var(--white);
+  background: linear-gradient(135deg, #fff7f9 0%, #fdecf1 100%);
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  color: var(--ink-900);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.04);
 }
 
 .promo-cream {
-  background: linear-gradient(135deg, #fff5f1, #ffe8ef);
+  background: linear-gradient(135deg, #fafafa 0%, #f4f4f4 100%);
+  border: 1px solid rgba(0, 0, 0, 0.08);
   color: var(--ink-900);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.04);
 }
 
 .promo-copy {
@@ -90,20 +95,52 @@ onMounted(() => {
   font-size: clamp(30px, 4vw, 44px);
   font-weight: 600;
   line-height: 1.08;
+  color: var(--ink-900);
 }
 
 .promo-text {
   font-size: 15px;
-  opacity: 0.92;
+  color: var(--ink-500);
+  line-height: 1.5;
 }
 
 .btn-light {
-  background: var(--white);
-  color: var(--rose-600);
-  box-shadow: var(--shadow-md);
+  background: #111111;
+  color: #ffffff;
+  border: 1px solid #111111;
+  border-radius: 2px;
+  padding: 12px 24px;
+  font-size: 12.5px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.12);
+  transition: all 0.25s ease;
 }
 
 .btn-light:hover {
+  background: #333333;
+  border-color: #333333;
+  color: #ffffff;
+  transform: translateY(-2px);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.2);
+}
+
+.btn-ghost {
+  border-radius: 2px;
+  border: 1px solid #111111;
+  color: #111111;
+  padding: 12px 24px;
+  font-size: 12.5px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  transition: all 0.25s ease;
+}
+
+.btn-ghost:hover {
+  background: #111111;
+  color: #ffffff;
   transform: translateY(-2px);
 }
 

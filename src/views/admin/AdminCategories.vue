@@ -451,4 +451,25 @@ async function onFile(event) {
   padding: 6px 14px;
   font-size: 12px;
 }
+
+@media (max-width: 768px) {
+  .filter-bar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .tabs {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+  .tab-btn {
+    flex: 1 1 auto;
+    text-align: center;
+  }
+  .filter-controls,
+  .search-box,
+  .search-input {
+    width: 100%;
+  }
+}
 </style>

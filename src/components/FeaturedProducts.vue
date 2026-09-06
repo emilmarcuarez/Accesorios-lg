@@ -13,7 +13,7 @@ onMounted(() => catalog.fetch())
 <template>
   <section class="featured">
     <div class="container">
-      <div class="section-head">
+      <div class="section-head" data-aos="fade-down">
         <span class="eyebrow">Los favoritos</span>
         <h2 class="section-title">Productos Destacados</h2>
         <router-link to="/tienda" class="btn btn-ghost section-btn">
@@ -23,7 +23,13 @@ onMounted(() => catalog.fetch())
       </div>
 
       <div v-if="featured.length" class="product-grid">
-        <ProductCard v-for="product in featured" :key="product.id" :product="product" />
+        <ProductCard
+          v-for="(product, index) in featured"
+          :key="product.id"
+          :product="product"
+          data-aos="fade-up"
+          :data-aos-delay="Math.min(index * 70, 450)"
+        />
       </div>
       <p v-else class="empty">Aún no hay productos destacados.</p>
     </div>
@@ -51,6 +57,24 @@ onMounted(() => catalog.fetch())
 
 .section-btn {
   margin-top: 6px;
+  border-radius: 2px;
+  border: 1px solid var(--rose-400);
+  color: var(--rose-600);
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  padding: 12px 24px;
+  background: #ffffff;
+  transition: all 0.25s ease;
+}
+
+.section-btn:hover {
+  background: var(--rose-600);
+  border-color: var(--rose-600);
+  color: #ffffff;
+  transform: translateY(-2px);
+  box-shadow: 0 6px 18px rgba(216, 90, 127, 0.2);
 }
 
 .product-grid {

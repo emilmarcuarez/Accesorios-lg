@@ -42,7 +42,7 @@ async function submit() {
 
 <template>
   <section class="auth">
-    <div class="container auth-card">
+    <div class="container auth-card" data-aos="zoom-in">
       <div class="auth-side">
         <span class="brand-script">{{ STORE.name }}</span>
         <p class="auth-side-title">Crea tu cuenta</p>

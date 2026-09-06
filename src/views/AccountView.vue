@@ -66,7 +66,7 @@ async function logout() {
 
 <template>
   <main class="account">
-    <section class="account-hero">
+    <section class="account-hero" data-aos="fade-down">
       <div class="container">
         <span class="eyebrow">Mi cuenta</span>
         <h1 class="account-title">Hola, {{ auth.fullName || auth.user?.email }}</h1>
@@ -75,7 +75,7 @@ async function logout() {
     </section>
 
     <section class="container account-body">
-      <div class="account-form">
+      <div class="account-form" data-aos="fade-right">
         <h2 class="form-title">Mis datos</h2>
         <label class="field">
           <span>Nombre</span>
@@ -111,7 +111,7 @@ async function logout() {
         </div>
       </div>
 
-      <div class="account-col">
+      <div class="account-col" data-aos="fade-left">
         <div class="account-form">
           <h2 class="form-title">Mis carritos</h2>
           <div v-if="cart.items.length" class="cart-summary">
@@ -168,24 +168,26 @@ async function logout() {
 }
 
 .account-hero {
-  background: var(--rose-gradient);
-  color: var(--white);
+  background: linear-gradient(180deg, #fff7f9 0%, #ffffff 100%);
+  border-bottom: 1.5px solid var(--rose-200, #f3c6d2);
+  color: var(--ink-900);
   text-align: center;
   padding: 54px 0;
 }
 
 .account-hero .eyebrow {
-  color: rgba(255, 255, 255, 0.9);
+  color: var(--rose-600);
 }
 
 .account-title {
   font-family: var(--font-display);
   font-size: clamp(34px, 5vw, 52px);
   font-weight: 600;
+  color: var(--ink-900);
 }
 
 .account-sub {
-  opacity: 0.95;
+  color: var(--ink-500);
   margin-top: 6px;
 }
 

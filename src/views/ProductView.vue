@@ -61,7 +61,7 @@ onMounted(() => catalog.fetch())
       </nav>
 
       <div class="product-layout">
-        <div class="product-image">
+        <div class="product-image" data-aos="fade-right">
           <img :src="resolveImage(product.image)" :alt="product.name" />
           <div class="product-image-badges">
             <span v-if="product.discount" class="tag tag-discount">-{{ product.discount }}% OFF</span>
@@ -71,7 +71,7 @@ onMounted(() => catalog.fetch())
           </span>
         </div>
 
-        <div class="product-info">
+        <div class="product-info" data-aos="fade-left">
           <span class="eyebrow">{{ product.categoryName }}</span>
           <h1 class="product-name">{{ product.name }}</h1>
 
@@ -135,12 +135,18 @@ onMounted(() => catalog.fetch())
     </div>
 
     <section v-if="related.length" class="container related">
-      <div class="section-head">
+      <div class="section-head" data-aos="fade-down">
         <span class="eyebrow">También te puede gustar</span>
         <h2 class="section-title">Productos relacionados</h2>
       </div>
       <div class="related-grid">
-        <ProductCard v-for="item in related" :key="item.id" :product="item" />
+        <ProductCard
+          v-for="(item, index) in related"
+          :key="item.id"
+          :product="item"
+          data-aos="fade-up"
+          :data-aos-delay="Math.min(index * 60, 400)"
+        />
       </div>
     </section>
   </main>
@@ -307,25 +313,28 @@ onMounted(() => catalog.fetch())
 .qty {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
-  border: 1px solid var(--line);
-  border-radius: var(--radius-full);
-  padding: 5px;
+  gap: 2px;
+  border: 1px solid #e0e0e0;
+  border-radius: 2px;
+  padding: 3px;
+  background: #ffffff;
 }
 
 .qty-btn {
-  width: 32px;
-  height: 32px;
-  border-radius: 50%;
+  width: 30px;
+  height: 30px;
+  border-radius: 2px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   color: var(--ink-700);
-  transition: background 0.2s ease;
+  background: transparent;
+  transition: background 0.2s ease, color 0.2s ease;
 }
 
 .qty-btn:hover {
   background: var(--rose-100);
+  color: var(--rose-700);
 }
 
 .qty-btn:disabled {

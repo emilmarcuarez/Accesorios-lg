@@ -10,7 +10,7 @@ const values = [
 
 <template>
   <main class="about">
-    <section class="about-hero">
+    <section class="about-hero" data-aos="fade-down">
       <div class="container">
         <span class="eyebrow">Detallitos Accesorios</span>
         <h1 class="about-title">Historias que se llevan<br />en cada detalle</h1>
@@ -22,10 +22,10 @@ const values = [
     </section>
 
     <section class="container about-content">
-      <div class="about-img">
+      <div class="about-img" data-aos="fade-right">
         <img :src="'/img/mujer.png'" alt="Detallitos Accesorios" />
       </div>
-      <div class="about-text">
+      <div class="about-text" data-aos="fade-left">
         <span class="eyebrow">Nuestra esencia</span>
         <h2 class="section-title">Feminidad que se expresa</h2>
         <p>
@@ -34,7 +34,13 @@ const values = [
           piezas que realzan tu esencia.
         </p>
         <div class="about-values">
-          <div v-for="value in values" :key="value.title" class="value">
+          <div
+            v-for="(value, index) in values"
+            :key="value.title"
+            class="value"
+            data-aos="fade-up"
+            :data-aos-delay="index * 80"
+          >
             <div class="value-icon"><AppIcon :name="value.icon" :size="22" /></div>
             <div>
               <p class="value-title">{{ value.title }}</p>
@@ -49,28 +55,32 @@ const values = [
 
 <style scoped>
 .about-hero {
-  background: var(--rose-gradient);
-  color: var(--white);
+  background: linear-gradient(180deg, #fff7f9 0%, #ffffff 100%);
+  border-bottom: 1.5px solid var(--rose-200, #f3c6d2);
+  color: var(--ink-900);
   text-align: center;
-  padding: 70px 0;
+  padding: 60px 0;
 }
 
 .about-hero .eyebrow {
-  color: rgba(255, 255, 255, 0.9);
+  color: var(--rose-600);
 }
 
 .about-title {
   font-family: var(--font-display);
   font-size: clamp(36px, 6vw, 60px);
   font-weight: 600;
-  line-height: 1.08;
+  color: var(--ink-900);
+  line-height: 1.1;
+  margin-bottom: 14px;
 }
 
 .about-sub {
-  max-width: 600px;
-  margin: 18px auto 0;
   font-size: 16px;
-  opacity: 0.95;
+  color: var(--ink-500);
+  max-width: 620px;
+  margin: 0 auto;
+  line-height: 1.6;
 }
 
 .about-content {

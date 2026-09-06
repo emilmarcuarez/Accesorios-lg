@@ -1,12 +1,20 @@
 <script setup>
 import { ref } from 'vue'
 import { useCartStore } from '@/store/cart'
+import { useCatalogStore } from '@/store/catalog'
 import AppIcon from '@/components/AppIcon.vue'
 import { formatPrice } from '@/utils/format'
 
 const cart = useCartStore()
+const catalog = useCatalogStore()
 const couponCode = ref('')
 const couponError = ref('')
+
+function getItemStock(item) {
+  if (typeof item.stock === 'number') return item.stock
+  const prod = catalog.products.find((p) => p.id === item.id)
+  return prod ? prod.stock : null
+}
 
 async function applyCoupon() {
   couponError.value = ''
@@ -42,15 +50,36 @@ async function applyCoupon() {
               </span>
               <span v-if="item.discount" class="cart-item-discount">-{{ item.discount }}%</span>
             </div>
+
+            <!-- Mostrar cuántas quedan en stock -->
+            <div v-if="getItemStock(item) !== null" class="cart-item-stock-row">
+              <span v-if="getItemStock(item) <= 0" class="cart-stock-tag out">Agotado</span>
+              <span v-else-if="getItemStock(item) <= 3" class="cart-stock-tag low">
+                ¡Solo quedan {{ getItemStock(item) }}!
+              </span>
+              <span v-else class="cart-stock-tag in">
+                {{ getItemStock(item) }} disponibles
+              </span>
+            </div>
+
             <div class="qty">
               <button class="qty-btn" aria-label="Menos" @click="cart.decrease(item.id)">
                 <AppIcon name="minus" :size="14" />
               </button>
               <span class="qty-num">{{ item.qty }}</span>
-              <button class="qty-btn" aria-label="Más" @click="cart.increase(item.id)">
+              <button
+                class="qty-btn"
+                :disabled="getItemStock(item) !== null && item.qty >= getItemStock(item)"
+                aria-label="Más"
+                :title="getItemStock(item) !== null && item.qty >= getItemStock(item) ? 'Stock máximo alcanzado' : 'Añadir más'"
+                @click="cart.increase(item.id)"
+              >
                 <AppIcon name="plus" :size="14" />
               </button>
             </div>
+            <p v-if="getItemStock(item) !== null && item.qty >= getItemStock(item)" class="max-stock-notice">
+              Máximo en stock
+            </p>
           </div>
           <button class="item-remove" aria-label="Quitar" @click="cart.remove(item.id)">
             <AppIcon name="trash" :size="17" />
@@ -98,7 +127,8 @@ async function applyCoupon() {
             <span>-{{ formatPrice(cart.discountAmount) }}</span>
           </div>
           <div v-if="cart.totalSavings > 0" class="savings-pill">
-            🎉 Ahorras {{ cart.formattedTotalSavings }} en esta compra
+            <span class="savings-label">AHORRO TOTAL:</span>
+            <strong class="savings-amount">-{{ cart.formattedTotalSavings }}</strong>
           </div>
           <div class="cart-total">
             <span>Total</span>
@@ -146,15 +176,36 @@ async function applyCoupon() {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 22px 24px;
-  border-bottom: 1px solid var(--line);
+  padding: 20px 24px;
+  background: #111111;
+  color: #ffffff;
+  border-bottom: 1px solid #222222;
 }
 
 .cart-title {
-  font-family: var(--font-display);
-  font-size: 24px;
-  font-weight: 600;
-  color: var(--ink-900);
+  font-family: var(--font-body);
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: #ffffff;
+}
+
+.cart-head .icon-btn {
+  color: #ffffff;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: 4px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+.cart-head .icon-btn:hover {
+  opacity: 0.8;
+  transform: scale(1.1);
 }
 
 .cart-body {
@@ -170,75 +221,127 @@ async function applyCoupon() {
   align-items: center;
   padding-bottom: 18px;
   margin-bottom: 18px;
-  border-bottom: 1px solid var(--line);
+  border-bottom: 1px solid #ebebeb;
 }
 
 .cart-item img {
   width: 84px;
   height: 84px;
   object-fit: cover;
-  border-radius: 12px;
+  border-radius: 2px;
+  border: 1px solid #eeeeee;
   background: var(--rose-50);
 }
 
 .cart-name {
+  font-family: var(--font-body);
   font-weight: 600;
-  font-size: 14.5px;
-  color: var(--ink-900);
+  font-size: 14px;
+  color: #111111;
   line-height: 1.3;
 }
 
 .cart-prices {
   display: flex;
   align-items: baseline;
-  gap: 6px;
+  gap: 8px;
   margin: 4px 0 10px;
 }
 
 .cart-price {
-  font-size: 14px;
-  font-weight: 600;
-  color: var(--rose-600);
+  font-family: var(--font-body);
+  font-size: 15px;
+  font-weight: 700;
+  color: #111111;
 }
 
 .cart-old-price {
-  font-size: 11.5px;
-  color: var(--ink-400);
+  font-family: var(--font-body);
+  font-size: 12px;
+  color: #999999;
   text-decoration: line-through;
 }
 
 .cart-item-discount {
-  font-size: 10.5px;
+  font-family: var(--font-body);
+  font-size: 10px;
   font-weight: 700;
-  background: #fff0f3;
-  color: #c92a54;
-  padding: 1px 5px;
-  border-radius: 4px;
-  border: 1px solid #fed7e2;
+  background: #111111;
+  color: #ffffff;
+  padding: 2px 6px;
+  border-radius: 2px;
+  letter-spacing: 0.04em;
+}
+
+.cart-item-stock-row {
+  margin: 4px 0 8px;
+  display: flex;
+  align-items: center;
+}
+
+.cart-stock-tag {
+  font-family: var(--font-body);
+  font-size: 11px;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  line-height: 1.2;
+}
+
+.cart-stock-tag.in {
+  color: #15803d;
+}
+
+.cart-stock-tag.low {
+  color: #b45309;
+  font-weight: 700;
+}
+
+.cart-stock-tag.out {
+  color: #dc2626;
+  font-weight: 700;
+}
+
+.max-stock-notice {
+  font-family: var(--font-body);
+  font-size: 10px;
+  font-weight: 600;
+  color: #b45309;
+  margin: 4px 0 0 0;
+  line-height: 1.2;
 }
 
 .qty {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
-  border: 1px solid var(--line);
-  border-radius: var(--radius-full);
-  padding: 3px;
+  gap: 2px;
+  border: 1px solid #e0e0e0;
+  border-radius: 2px;
+  padding: 2px;
+  background: #ffffff;
 }
 
 .qty-btn {
   width: 26px;
   height: 26px;
-  border-radius: 50%;
+  border-radius: 2px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   color: var(--ink-700);
-  transition: background 0.2s ease;
+  background: transparent;
+  transition: background 0.2s ease, color 0.2s ease;
 }
 
-.qty-btn:hover {
+.qty-btn:hover:not(:disabled) {
   background: var(--rose-100);
+  color: var(--rose-700);
+}
+
+.qty-btn:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+  pointer-events: none;
 }
 
 .qty-num {
@@ -259,10 +362,21 @@ async function applyCoupon() {
 
 .clear-link {
   display: block;
-  margin: 0 auto;
-  font-size: 12.5px;
-  color: var(--ink-400);
+  margin: 10px auto 0;
+  font-family: var(--font-body);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  color: #888888;
   text-decoration: underline;
+  background: none;
+  border: none;
+  cursor: pointer;
+  transition: color 0.2s ease;
+}
+
+.clear-link:hover {
+  color: var(--rose-600);
 }
 
 .cart-empty {
@@ -275,11 +389,13 @@ async function applyCoupon() {
   color: var(--ink-400);
   padding: 30px;
   text-align: center;
+  font-family: var(--font-body);
 }
 
 .cart-foot {
-  border-top: 1px solid var(--line);
+  border-top: 1px solid #eeeeee;
   padding: 20px 24px 24px;
+  background: #ffffff;
 }
 
 .coupon-row {
@@ -290,26 +406,45 @@ async function applyCoupon() {
 
 .coupon-input {
   flex: 1;
-  border: 1px solid var(--line);
-  border-radius: 10px;
+  font-family: var(--font-body);
+  border: 1px solid #dcdcdc;
+  border-radius: 2px;
   padding: 10px 14px;
-  font-size: 13px;
-  background: var(--rose-50);
+  font-size: 12.5px;
+  letter-spacing: 0.04em;
+  background: #ffffff;
   outline: none;
   text-transform: uppercase;
+  transition: border-color 0.2s ease;
 }
 
 .coupon-input:focus {
-  border-color: var(--rose-300);
+  border-color: #111111;
   background: var(--white);
 }
 
 .coupon-apply {
-  padding: 10px 16px;
-  font-size: 13px;
+  font-family: var(--font-body);
+  padding: 10px 18px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  border-radius: 2px;
+  background: #111111;
+  border: 1px solid #111111;
+  color: #ffffff;
+  transition: all 0.2s ease;
+}
+
+.coupon-apply:hover {
+  background: var(--rose-600);
+  border-color: var(--rose-600);
+  color: #ffffff;
 }
 
 .coupon-error {
+  font-family: var(--font-body);
   color: #c0392b;
   font-size: 12px;
   margin-bottom: 8px;
@@ -324,8 +459,9 @@ async function applyCoupon() {
   align-items: center;
   justify-content: space-between;
   gap: 8px;
+  font-family: var(--font-body);
   font-size: 13px;
-  color: var(--ink-500);
+  color: #666666;
   margin-bottom: 6px;
 }
 
@@ -336,53 +472,114 @@ async function applyCoupon() {
 .coupon-remove {
   font-size: 11px;
   text-decoration: underline;
-  color: var(--ink-400);
+  color: #999999;
+  background: none;
+  border: none;
+  cursor: pointer;
 }
 
 .savings-pill {
-  background: linear-gradient(135deg, #fff0f3 0%, #ffe3ea 100%);
-  border: 1px solid #fccfd8;
-  color: #b3264b;
-  font-size: 12px;
+  background: #111111;
+  border: 1px solid #111111;
+  color: #ffffff;
+  font-family: var(--font-body);
+  font-size: 11.5px;
   font-weight: 700;
-  padding: 6px 10px;
-  border-radius: 8px;
-  margin: 6px 0 10px;
-  text-align: center;
+  letter-spacing: 0.06em;
+  padding: 9px 14px;
+  border-radius: 2px;
+  margin: 10px 0 14px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.savings-label {
+  color: rgba(255, 255, 255, 0.75);
+  font-size: 11px;
+}
+
+.savings-amount {
+  color: #ffffff;
+  font-size: 13px;
+  font-weight: 700;
 }
 
 .cart-total {
   display: flex;
   align-items: baseline;
   justify-content: space-between;
-  margin-top: 8px;
-  font-size: 15px;
-  color: var(--ink-700);
+  margin-top: 10px;
+  padding-top: 8px;
+  border-top: 1px dashed #e0e0e0;
+  font-family: var(--font-body);
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #111111;
 }
 
 .cart-total strong {
-  font-family: var(--font-display);
-  font-size: 28px;
-  color: var(--ink-900);
+  font-family: var(--font-body);
+  font-size: 26px;
+  font-weight: 700;
+  color: #111111;
+  letter-spacing: -0.01em;
 }
 
 .cart-checkout {
   width: 100%;
-  padding: 14px;
+  padding: 15px;
+  border-radius: 2px;
+  font-family: var(--font-body);
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  background: var(--rose-gradient);
+  color: #ffffff;
+  border: 1px solid transparent;
+  box-shadow: 0 4px 14px rgba(217, 109, 139, 0.35);
+  transition: all 0.25s ease;
+  cursor: pointer;
+}
+
+.cart-checkout:hover {
+  background: #111111;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.25);
+  transform: translateY(-2px);
 }
 
 .cart-receipt {
   width: 100%;
   margin-top: 10px;
-  padding: 12px;
-  font-size: 13px;
+  padding: 13px;
+  font-family: var(--font-body);
+  font-size: 12.5px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  border-radius: 2px;
+  border: 1px solid #111111;
+  color: #111111;
+  background: #ffffff;
+  transition: all 0.25s ease;
+  cursor: pointer;
+}
+
+.cart-receipt:hover {
+  background: #111111;
+  color: #ffffff;
+  transform: translateY(-2px);
 }
 
 .cart-hint {
   margin-top: 12px;
   text-align: center;
-  font-size: 12px;
-  color: var(--ink-400);
+  font-family: var(--font-body);
+  font-size: 11.5px;
+  color: #888888;
+  line-height: 1.4;
 }
 
 .fade-enter-active,

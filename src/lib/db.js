@@ -98,6 +98,67 @@ export async function recordCouponUsage(code, userKey) {
   return setSetting('coupon_usages', JSON.stringify(usages))
 }
 
+// Registro de cupones usados en órdenes
+export async function getOrderCoupons() {
+  const { data } = await getSetting('order_coupons')
+  if (!data) return {}
+  try {
+    return typeof data === 'string' ? JSON.parse(data) : data
+  } catch {
+    return {}
+  }
+}
+
+export async function recordOrderCoupon(orderId, couponData) {
+  if (!orderId || !couponData) return
+  const current = await getOrderCoupons()
+  current[String(orderId)] = {
+    code: couponData.code?.toUpperCase()?.trim(),
+    discount: Number(couponData.discount) || 0,
+    amount: Number(couponData.amount) || 0,
+    recorded_at: new Date().toISOString(),
+  }
+  return setSetting('order_coupons', JSON.stringify(current))
+}
+
+// Comprueba cupones vencidos o con límite alcanzado y los desactiva automáticamente en Supabase
+export async function checkAndDeactivateExpiredCoupons() {
+  if (!supabase) return
+  try {
+    const [couponsRes, rules] = await Promise.all([listCoupons(), getCouponRules()])
+    const couponsList = couponsRes.data || []
+    const now = new Date()
+
+    for (const c of couponsList) {
+      if (!c.active) continue
+      const rule = rules[c.code?.toUpperCase()] || {}
+
+      // 1. Verificar fecha de vencimiento
+      if (rule.expires_at) {
+        const expDate = new Date(rule.expires_at)
+        if (!isNaN(expDate.getTime()) && now.getTime() > expDate.getTime()) {
+          await updateCoupon(c.id, { active: false })
+          c.active = false
+          continue
+        }
+      }
+
+      // 2. Verificar límite total de canjes globales si está configurado
+      if (rule.total_usage_limit && Number(rule.total_usage_limit) > 0) {
+        const usages = await getCouponUsages()
+        const codeUsages = usages[c.code?.toUpperCase()] || {}
+        const totalUsed = Object.values(codeUsages).reduce((sum, val) => sum + (Number(val) || 0), 0)
+        if (totalUsed >= Number(rule.total_usage_limit)) {
+          await updateCoupon(c.id, { active: false })
+          c.active = false
+        }
+      }
+    }
+  } catch (err) {
+    console.warn('Error al verificar vencimiento automático de cupones:', err)
+  }
+}
+
 export async function listProfiles() {
   if (!supabase) return { data: [], error: 'Supabase no configurado' }
   return supabase.from('profiles').select('*').order('created_at', { ascending: false })
@@ -105,10 +166,26 @@ export async function listProfiles() {
 
 export async function listOrders() {
   if (!supabase) return { data: [], error: 'Supabase no configurado' }
-  return supabase
-    .from('orders')
-    .select('*, profiles(name, lastname), order_items(*, products(name, price, discount, image))')
-    .order('created_at', { ascending: false })
+  const [ordersRes, orderCouponsMap] = await Promise.all([
+    supabase
+      .from('orders')
+      .select('*, profiles(name, lastname), order_items(*, products(name, price, discount, image))')
+      .order('created_at', { ascending: false }),
+    getOrderCoupons(),
+  ])
+
+  const ordersList = ordersRes.data || []
+  const enriched = ordersList.map((o) => {
+    const couponInfo = orderCouponsMap[String(o.id)] || null
+    return {
+      ...o,
+      coupon_code: couponInfo?.code || null,
+      coupon_discount: couponInfo?.discount || 0,
+      coupon_amount: couponInfo?.amount || 0,
+    }
+  })
+
+  return { data: enriched, error: ordersRes.error }
 }
 
 export async function listMyOrders(userId) {
@@ -190,6 +267,66 @@ export async function uploadImage(file) {
     return { url }
   } catch {
     return { error: 'No se pudo conectar con x02.me' }
+  }
+}
+
+export async function uploadHeroMedia(file, previousUrl = null) {
+  if (!supabase) return { error: 'Supabase no está configurado' }
+
+  // 1. Borrar el archivo anterior de Supabase Storage para no dejar basura
+  if (previousUrl) {
+    await deleteHeroMedia(previousUrl)
+  }
+
+  // 2. Subir el nuevo archivo al bucket 'hero-videos'
+  const fileExt = (file.name.split('.').pop() || 'mp4').toLowerCase()
+  const cleanName = file.name
+    .replace(/\.[^/.]+$/, '')
+    .replace(/[^a-zA-Z0-9_-]/g, '_')
+    .slice(0, 30)
+  const fileName = `header_${Date.now()}_${cleanName}.${fileExt}`
+
+  try {
+    const { data, error } = await supabase.storage
+      .from('hero-videos')
+      .upload(fileName, file, {
+        cacheControl: '3600',
+        upsert: true,
+      })
+
+    if (error) {
+      return {
+        error:
+          'Error en Supabase Storage: ' +
+          (error.message || 'Por favor asegúrate de ejecutar el script SQL para crear el bucket hero-videos.'),
+      }
+    }
+
+    const { data: publicData } = supabase.storage
+      .from('hero-videos')
+      .getPublicUrl(fileName)
+
+    return {
+      url: publicData.publicUrl,
+      fileName,
+    }
+  } catch (err) {
+    return { error: 'Error de conexión con Supabase: ' + (err.message || err) }
+  }
+}
+
+export async function deleteHeroMedia(url) {
+  if (!supabase || !url) return
+  try {
+    const parts = url.split('/hero-videos/')
+    if (parts.length > 1) {
+      const filename = decodeURIComponent(parts[1].split('?')[0])
+      if (filename) {
+        await supabase.storage.from('hero-videos').remove([filename])
+      }
+    }
+  } catch (err) {
+    console.warn('Error al eliminar media anterior en Supabase Storage:', err)
   }
 }
 

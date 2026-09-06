@@ -2,7 +2,7 @@
 import { ref, computed, onMounted } from 'vue'
 import * as XLSX from 'xlsx'
 import AppIcon from '@/components/AppIcon.vue'
-import { listOrders, updateOrderStatus, insertOrder } from '@/lib/db'
+import { listOrders, updateOrderStatus, insertOrder, recordOrderCoupon, listCoupons } from '@/lib/db'
 import { useCartStore } from '@/store/cart'
 import { useCatalogStore } from '@/store/catalog'
 import { resolveImage } from '@/utils/image'
@@ -16,7 +16,9 @@ const loaded = ref(false)
 // Filtros básicos
 const statuses = ['pendiente', 'pagado', 'enviado', 'entregado', 'cancelado']
 const statusFilter = ref('all')
+const couponFilter = ref('all') // 'all' | 'with_coupon' | 'without_coupon' | 'CODE'
 const searchQuery = ref('')
+const allCoupons = ref([])
 
 // Filtro por rango de fechas
 const rangePreset = ref('all') // 'all' | 'today' | '7days' | 'this_month' | 'last_month' | 'custom'
@@ -38,12 +40,15 @@ const manualForm = ref({
   customer_phone: '',
   status: 'pagado',
   created_at: '',
+  coupon_code: '',
+  coupon_discount: 0,
   items: [],
 })
 
 async function load() {
-  const res = await listOrders()
-  orders.value = res.data || []
+  const [resOrders, resCoupons] = await Promise.all([listOrders(), listCoupons()])
+  orders.value = resOrders.data || []
+  allCoupons.value = (resCoupons.data || []).filter((c) => c.active)
   loaded.value = true
 }
 
@@ -165,7 +170,7 @@ function setPreset(preset) {
   }
 }
 
-// Filtro de pedidos por fecha y estado y búsqueda
+// Filtro de pedidos por fecha, estado, cupón y búsqueda
 const filteredOrders = computed(() => {
   const win = dateWindows.value.current
 
@@ -183,14 +188,32 @@ const filteredOrders = computed(() => {
       return false
     }
 
-    // Filtro de búsqueda
+    // Filtro de cupón
+    if (couponFilter.value === 'with_coupon' && !order.coupon_code) {
+      return false
+    }
+    if (couponFilter.value === 'without_coupon' && order.coupon_code) {
+      return false
+    }
+    if (
+      couponFilter.value !== 'all' &&
+      couponFilter.value !== 'with_coupon' &&
+      couponFilter.value !== 'without_coupon'
+    ) {
+      if ((order.coupon_code || '').toUpperCase() !== couponFilter.value.toUpperCase()) {
+        return false
+      }
+    }
+
+    // Filtro de búsqueda (por ID, #padded, cliente, teléfono o código de cupón)
     if (searchQuery.value.trim()) {
       const q = searchQuery.value.toLowerCase().trim()
       const idStr = String(order.id)
       const paddedId = idStr.padStart(4, '0')
       const clientName = `${order.profiles?.name || order.customer_name || ''} ${order.profiles?.lastname || ''}`.toLowerCase()
       const phone = (order.customer_phone || '').toLowerCase()
-      if (!idStr.includes(q) && !paddedId.includes(q) && !clientName.includes(q) && !phone.includes(q)) {
+      const coupon = (order.coupon_code || '').toLowerCase()
+      if (!idStr.includes(q) && !paddedId.includes(q) && !clientName.includes(q) && !phone.includes(q) && !coupon.includes(q)) {
         return false
       }
     }
@@ -289,6 +312,27 @@ const statusCounts = computed(() => {
   return counts
 })
 
+// Conteo de pedidos que usaron cupón en la selección de fecha
+const withCouponCount = computed(() => {
+  const win = dateWindows.value.current
+  const base = win
+    ? orders.value.filter((o) => {
+        const t = new Date(o.created_at).getTime()
+        return t >= win.from.getTime() && t <= win.to.getTime()
+      })
+    : orders.value
+  return base.filter((o) => Boolean(o.coupon_code)).length
+})
+
+// Lista única de códigos de cupón usados en los pedidos
+const uniqueCouponsInOrders = computed(() => {
+  const set = new Set()
+  for (const o of orders.value) {
+    if (o.coupon_code) set.add(o.coupon_code.toUpperCase())
+  }
+  return Array.from(set).sort()
+})
+
 // Agrupación por Día
 const ordersByDay = computed(() => {
   const map = {}
@@ -346,6 +390,7 @@ function toggleGroup(key) {
 function clearFilters() {
   searchQuery.value = ''
   statusFilter.value = 'all'
+  couponFilter.value = 'all'
   setPreset('all')
 }
 
@@ -381,6 +426,8 @@ function exportToExcel() {
       Teléfono: order.customer_phone || '—',
       'Artículos / Detalle': itemsDetail || '—',
       'Unidades Totales': totalUnits,
+      'Cupón': order.coupon_code ? `${order.coupon_code} (-${order.coupon_discount}%)` : '—',
+      'Descuento Cupón ($)': order.coupon_amount ? Number(Number(order.coupon_amount).toFixed(2)) : 0,
       'Total Facturado ($)': Number(Number(order.subtotal || 0).toFixed(2)),
       Estado: (order.status || 'pendiente').toUpperCase(),
     }
@@ -392,6 +439,7 @@ function exportToExcel() {
     (s, o) => s + (o.order_items || []).reduce((sum, i) => sum + (i.qty || 0), 0),
     0,
   )
+  const totalCouponDiscVal = filteredOrders.value.reduce((s, o) => s + Number(o.coupon_amount || 0), 0)
 
   rows.push({}) // Fila vacía
   rows.push({
@@ -402,6 +450,8 @@ function exportToExcel() {
     Teléfono: '',
     'Artículos / Detalle': '',
     'Unidades Totales': totalUnitsVal,
+    'Cupón': `Con cupón: ${filteredOrders.value.filter((o) => o.coupon_code).length}`,
+    'Descuento Cupón ($)': Number(totalCouponDiscVal.toFixed(2)),
     'Total Facturado ($)': Number(totalSalesVal.toFixed(2)),
     Estado: '',
   })
@@ -415,6 +465,8 @@ function exportToExcel() {
     { wch: 16 },
     { wch: 45 },
     { wch: 16 },
+    { wch: 20 },
+    { wch: 20 },
     { wch: 18 },
     { wch: 16 },
   ]
@@ -435,11 +487,24 @@ function openManualSaleModal() {
     customer_phone: '',
     status: 'pagado',
     created_at: localIso,
+    coupon_code: '',
+    coupon_discount: 0,
     items: [],
   }
   selectedProdId.value = ''
   manualProductSearch.value = ''
   manualSaleModal.value = true
+}
+
+function onManualCouponChange() {
+  if (!manualForm.value.coupon_code) {
+    manualForm.value.coupon_discount = 0
+    return
+  }
+  const found = allCoupons.value.find((c) => c.code.toUpperCase() === manualForm.value.coupon_code.toUpperCase())
+  if (found) {
+    manualForm.value.coupon_discount = Number(found.discount || 0)
+  }
 }
 
 const availableProducts = computed(() => {
@@ -476,8 +541,17 @@ function removeManualItem(index) {
   manualForm.value.items.splice(index, 1)
 }
 
-const manualSaleTotal = computed(() => {
+const manualSaleSubtotal = computed(() => {
   return manualForm.value.items.reduce((s, i) => s + (Number(i.price) || 0) * (Number(i.qty) || 1), 0)
+})
+
+const manualCouponDiscountAmount = computed(() => {
+  if (!manualForm.value.coupon_code || !manualForm.value.coupon_discount) return 0
+  return (manualSaleSubtotal.value * Number(manualForm.value.coupon_discount)) / 100
+})
+
+const manualSaleTotal = computed(() => {
+  return Math.max(0, manualSaleSubtotal.value - manualCouponDiscountAmount.value)
 })
 
 async function saveManualSale() {
@@ -511,6 +585,15 @@ async function saveManualSale() {
   if (res.error) {
     alert('Error al registrar la venta: ' + (res.error.message || res.error))
     return
+  }
+
+  // Si se aplicó cupón a la venta manual, registrarlo en la asociación
+  if (res.data?.id && manualForm.value.coupon_code) {
+    await recordOrderCoupon(res.data.id, {
+      code: manualForm.value.coupon_code.toUpperCase(),
+      discount: manualForm.value.coupon_discount,
+      amount: manualCouponDiscountAmount.value,
+    })
   }
 
   manualSaleModal.value = false
@@ -735,8 +818,8 @@ async function saveManualSale() {
         <div class="tabs">
           <button
             class="tab-btn"
-            :class="{ active: statusFilter === 'all' }"
-            @click="statusFilter = 'all'"
+            :class="{ active: statusFilter === 'all' && couponFilter === 'all' }"
+            @click="statusFilter = 'all'; couponFilter = 'all'"
           >
             Todos <span class="tab-count">{{ statusCounts.all }}</span>
           </button>
@@ -775,15 +858,44 @@ async function saveManualSale() {
           >
             Cancelado <span class="tab-count">{{ statusCounts.cancelado }}</span>
           </button>
+
+          <!-- Filtro rápido por Cupón -->
+          <button
+            class="tab-btn coupon-tab"
+            :class="{ active: couponFilter === 'with_coupon' }"
+            title="Filtrar pedidos que usaron cupón de descuento"
+            @click="couponFilter = couponFilter === 'with_coupon' ? 'all' : 'with_coupon'"
+          >
+            <span class="tab-icon">🎟</span> Con Cupón <span class="tab-count">{{ withCouponCount }}</span>
+          </button>
         </div>
 
         <div class="filter-controls">
+          <!-- Selector de Cupones usados si hay variedad -->
+          <div v-if="uniqueCouponsInOrders.length" class="coupon-dropdown-box">
+            <select
+              v-model="couponFilter"
+              class="coupon-filter-select"
+              :class="{ 'has-filter': couponFilter !== 'all' }"
+              title="Filtrar por código de cupón"
+            >
+              <option value="all">🎟 Todos los pedidos</option>
+              <option value="with_coupon">Con cualquier cupón ({{ withCouponCount }})</option>
+              <option value="without_coupon">Sin cupón</option>
+              <optgroup label="Cupones específicos:">
+                <option v-for="c in uniqueCouponsInOrders" :key="c" :value="c">
+                  Cupón: {{ c }}
+                </option>
+              </optgroup>
+            </select>
+          </div>
+
           <div class="search-box">
             <AppIcon name="search" :size="16" class="search-icon" />
             <input
               v-model="searchQuery"
               type="text"
-              placeholder="Buscar por #, cliente o teléfono..."
+              placeholder="Buscar por #, cliente, teléfono o cupón..."
               class="search-input"
             />
             <button v-if="searchQuery" class="clear-search" @click="searchQuery = ''">
@@ -804,6 +916,7 @@ async function saveManualSale() {
               <th>Pedido</th>
               <th>Cliente</th>
               <th>Artículos</th>
+              <th>Cupón</th>
               <th>Total</th>
               <th>Fecha y Hora</th>
               <th>Estado</th>
@@ -832,6 +945,18 @@ async function saveManualSale() {
                       {{ it.products?.name || 'Producto' }} (x{{ it.qty }})
                     </span>
                   </div>
+                </div>
+                <span v-else class="muted">—</span>
+              </td>
+              <!-- Columna de Cupón -->
+              <td>
+                <div
+                  v-if="order.coupon_code"
+                  class="order-coupon-badge"
+                  :title="`Cupón ${order.coupon_code}: -${order.coupon_discount}% ($${Number(order.coupon_amount || 0).toFixed(2)})`"
+                >
+                  <span class="coupon-code-text">{{ order.coupon_code }}</span>
+                  <span class="coupon-disc-text">-{{ order.coupon_discount }}%</span>
                 </div>
                 <span v-else class="muted">—</span>
               </td>
@@ -898,7 +1023,7 @@ async function saveManualSale() {
               </tr>
               <!-- Desglose de pedidos del día -->
               <tr v-if="expandedGroups[grp.key]" class="subtable-row">
-                <td colspan="6">
+                <td colspan="7">
                   <div class="nested-orders">
                     <table class="nested-table">
                       <thead>
@@ -906,6 +1031,7 @@ async function saveManualSale() {
                           <th>Pedido</th>
                           <th>Cliente</th>
                           <th>Artículos</th>
+                          <th>Cupón</th>
                           <th>Total</th>
                           <th>Estado</th>
                           <th>Factura</th>
@@ -916,6 +1042,13 @@ async function saveManualSale() {
                           <td><span class="order-id-badge">#{{ String(subOrder.id).padStart(4, '0') }}</span></td>
                           <td>{{ subOrder.profiles?.name || subOrder.customer_name || 'Anónimo' }}</td>
                           <td>{{ subOrder.order_items?.length || 0 }} uds</td>
+                          <td>
+                            <div v-if="subOrder.coupon_code" class="order-coupon-badge sm">
+                              <span class="coupon-code-text">{{ subOrder.coupon_code }}</span>
+                              <span class="coupon-disc-text">-{{ subOrder.coupon_discount }}%</span>
+                            </div>
+                            <span v-else class="muted">—</span>
+                          </td>
                           <td class="order-price">${{ Number(subOrder.subtotal).toFixed(2) }}</td>
                           <td>
                             <select
@@ -980,7 +1113,7 @@ async function saveManualSale() {
               </tr>
               <!-- Desglose de pedidos del mes -->
               <tr v-if="expandedGroups[grp.key]" class="subtable-row">
-                <td colspan="6">
+                <td colspan="7">
                   <div class="nested-orders">
                     <table class="nested-table">
                       <thead>
@@ -989,6 +1122,7 @@ async function saveManualSale() {
                           <th>Fecha</th>
                           <th>Cliente</th>
                           <th>Artículos</th>
+                          <th>Cupón</th>
                           <th>Total</th>
                           <th>Estado</th>
                           <th>Factura</th>
@@ -1000,6 +1134,13 @@ async function saveManualSale() {
                           <td class="muted">{{ new Date(subOrder.created_at).toLocaleDateString('es-VE') }}</td>
                           <td>{{ subOrder.profiles?.name || subOrder.customer_name || 'Anónimo' }}</td>
                           <td>{{ subOrder.order_items?.length || 0 }} uds</td>
+                          <td>
+                            <div v-if="subOrder.coupon_code" class="order-coupon-badge sm">
+                              <span class="coupon-code-text">{{ subOrder.coupon_code }}</span>
+                              <span class="coupon-disc-text">-{{ subOrder.coupon_discount }}%</span>
+                            </div>
+                            <span v-else class="muted">—</span>
+                          </td>
                           <td class="order-price">${{ Number(subOrder.subtotal).toFixed(2) }}</td>
                           <td>
                             <select
@@ -1080,6 +1221,22 @@ async function saveManualSale() {
             </div>
           </div>
 
+          <div class="admin-grid-2" style="margin-top: 4px;">
+            <div class="admin-field">
+              <label>Cupón de Descuento (Opcional)</label>
+              <select v-model="manualForm.coupon_code" class="status-select-modal" @change="onManualCouponChange">
+                <option value="">Sin cupón</option>
+                <option v-for="c in allCoupons" :key="c.id" :value="c.code">
+                  {{ c.code }} ({{ c.discount }}% OFF)
+                </option>
+              </select>
+            </div>
+            <div v-if="manualForm.coupon_code" class="admin-field">
+              <label>Descuento aplicado (%)</label>
+              <input v-model.number="manualForm.coupon_discount" type="number" min="0" max="100" />
+            </div>
+          </div>
+
           <hr class="form-divider" />
 
           <!-- Selección de Productos -->
@@ -1157,6 +1314,9 @@ async function saveManualSale() {
           <div class="sale-summary-bar">
             <div class="summary-left">
               <span>Total Artículos: <strong>{{ manualForm.items.reduce((s, i) => s + (i.qty || 0), 0) }}</strong></span>
+              <span v-if="manualCouponDiscountAmount > 0" class="manual-coupon-tag">
+                Cupón {{ manualForm.coupon_code }}: -${{ manualCouponDiscountAmount.toFixed(2) }} (-{{ manualForm.coupon_discount }}%)
+              </span>
             </div>
             <div class="summary-right">
               <span class="total-label">Total a Cobrar:</span>
@@ -1505,6 +1665,102 @@ async function saveManualSale() {
 .tab-btn.active .tab-count {
   background: var(--rose-50);
   color: var(--rose-600);
+}
+
+/* Coupon filter button in tabs */
+.tab-btn.coupon-tab {
+  background: #ffffff;
+  border: 1px dashed #f2b8c6;
+  color: #a81c42;
+  font-family: 'Montserrat', sans-serif;
+}
+
+.tab-btn.coupon-tab:hover {
+  background: #fff0f3;
+  color: #8b1334;
+  border-color: #c92a54;
+}
+
+.tab-btn.coupon-tab.active {
+  background: #111111;
+  color: #ffffff;
+  border-color: #111111;
+}
+
+.tab-btn.coupon-tab.active .tab-count {
+  background: #c92a54;
+  color: #ffffff;
+}
+
+/* Coupon dropdown select in filter controls */
+.coupon-dropdown-box {
+  display: inline-flex;
+}
+
+.coupon-filter-select {
+  padding: 8px 12px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  font-size: 12px;
+  font-weight: 600;
+  font-family: 'Montserrat', sans-serif;
+  background: #ffffff;
+  color: var(--ink-700);
+  outline: none;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.coupon-filter-select:focus,
+.coupon-filter-select.has-filter {
+  border-color: #c92a54;
+  background: #fff8f9;
+  color: #c92a54;
+}
+
+/* Order Coupon Badge */
+.order-coupon-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: #fff0f3;
+  border: 1px solid #fccfd8;
+  padding: 3px 8px;
+  border-radius: 4px;
+  font-family: 'Montserrat', sans-serif;
+}
+
+.order-coupon-badge.sm {
+  padding: 2px 6px;
+  font-size: 11px;
+}
+
+.coupon-code-text {
+  font-weight: 800;
+  font-size: 11.5px;
+  color: #111111;
+  letter-spacing: 0.5px;
+}
+
+.coupon-disc-text {
+  font-size: 10.5px;
+  font-weight: 700;
+  background: #c92a54;
+  color: #ffffff;
+  padding: 1px 5px;
+  border-radius: 2px;
+}
+
+.manual-coupon-tag {
+  display: inline-block;
+  margin-left: 8px;
+  font-size: 11.5px;
+  font-weight: 700;
+  color: #c92a54;
+  background: #fff0f3;
+  border: 1px solid #fccfd8;
+  padding: 2px 8px;
+  border-radius: 4px;
 }
 
 .filter-controls {
@@ -1922,5 +2178,58 @@ async function saveManualSale() {
 .btn-sm {
   padding: 6px 14px;
   font-size: 12px;
+}
+
+@media (max-width: 768px) {
+  .toolbar-actions {
+    flex-direction: column;
+    width: 100%;
+    gap: 8px;
+  }
+  .toolbar-actions .admin-btn {
+    width: 100%;
+    justify-content: center;
+  }
+  .date-presets-row {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+  }
+  .presets-group {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+  .preset-btn {
+    flex: 1 1 auto;
+    text-align: center;
+  }
+  .custom-range-inputs {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .filter-bar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .tabs {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+  .tab-btn {
+    flex: 1 1 auto;
+    text-align: center;
+  }
+  .filter-controls,
+  .search-box,
+  .search-input {
+    width: 100%;
+  }
+  .sale-summary-bar {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+  }
 }
 </style>

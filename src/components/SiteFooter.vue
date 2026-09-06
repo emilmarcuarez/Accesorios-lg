@@ -260,19 +260,81 @@ const payments = ['Pago Movil', 'Transferencias', 'Zelle', 'USDT', 'Dolares', 'E
   }
 }
 
-@media (max-width: 600px) {
+@media (max-width: 768px) {
+  .footer {
+    text-align: center;
+  }
+
   .footer-grid {
     grid-template-columns: 1fr;
+    gap: 36px;
+    padding-bottom: 30px;
   }
+
   .footer-brand {
     grid-column: auto;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
   }
+
+  .brand {
+    display: flex;
+    justify-content: center;
+  }
+
+  .brand-logo {
+    margin: 0 auto;
+  }
+
+  .footer-desc {
+    margin: 14px auto 18px;
+    text-align: center;
+    max-width: 320px;
+  }
+
+  .socials {
+    justify-content: center;
+  }
+
+  .footer-col {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+  }
+
+  .footer-title {
+    text-align: center;
+    margin-bottom: 14px;
+  }
+
+  .footer-link {
+    text-align: center;
+  }
+
+  .contact-item {
+    justify-content: center;
+    text-align: center;
+  }
+
   .footer-bottom {
     flex-direction: column;
     align-items: center;
     text-align: center;
-    gap: 14px;
+    gap: 16px;
   }
+
+  .footer-legal {
+    align-items: center;
+    text-align: center;
+  }
+
+  .legal-links {
+    justify-content: center;
+  }
+
   .payments {
     justify-content: center;
   }

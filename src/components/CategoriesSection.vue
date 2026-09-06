@@ -61,7 +61,7 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <section v-if="categories.length" class="categories">
+  <section v-if="categories.length" class="categories" data-aos="fade-up">
     <div class="container">
       <div class="carousel-wrap">
         <!-- Botón Desplazar Izquierda -->
@@ -83,10 +83,12 @@ onUnmounted(() => {
           @scroll.passive="updateScrollState"
         >
           <router-link
-            v-for="cat in categories"
+            v-for="(cat, index) in categories"
             :key="cat.slug"
             :to="`/tienda/${cat.slug}`"
             class="cat-item"
+            data-aos="zoom-in"
+            :data-aos-delay="Math.min(index * 60, 400)"
           >
             <div class="cat-circle">
               <img
@@ -124,7 +126,9 @@ onUnmounted(() => {
 
 <style scoped>
 .categories {
-  padding: 48px 0 24px;
+  padding: 56px 0 32px;
+  background: #ffffff;
+  border-bottom: 1px solid rgba(234, 169, 187, 0.22);
 }
 
 .carousel-wrap {

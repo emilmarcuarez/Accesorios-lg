@@ -15,7 +15,7 @@ onMounted(async () => {
 
 <template>
   <section class="ig">
-    <div class="container ig-footer-top">
+    <div class="container ig-footer-top" data-aos="fade-down">
       <div class="ig-head">
         <span class="eyebrow">Comunidad</span>
         <h2 class="section-title">Inspírate con nosotros</h2>
@@ -37,6 +37,8 @@ onMounted(async () => {
           :href="`https://instagram.com/${STORE.instagram.replace('@', '')}`"
           class="ig-item"
           target="_blank"
+          data-aos="zoom-in"
+          :data-aos-delay="Math.min(i * 60, 450)"
         >
           <img :src="resolveImage(img.src)" :alt="STORE.instagram" :style="{ objectPosition: img.pos }" />
         </a>
@@ -48,7 +50,9 @@ onMounted(async () => {
 
 <style scoped>
 .ig {
-  padding: 60px 0;
+  padding: 64px 0;
+  background: #ffffff;
+  border-top: 1px solid rgba(234, 169, 187, 0.22);
 }
 
 .ig-footer-top {

@@ -894,5 +894,21 @@ async function removeDiscount(item) {
   .metrics-grid {
     grid-template-columns: 1fr;
   }
+  .filter-bar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .tabs {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+  .tab-btn {
+    flex: 1 1 auto;
+    text-align: center;
+  }
+  .search-input {
+    width: 100%;
+  }
 }
 </style>

@@ -3,7 +3,6 @@ import { getSetting, setSetting } from '@/lib/db'
 import { STORE, DEFAULT_STORE, updateStoreConfig } from '@/config'
 
 export const DEFAULT_HERO = {
-  badge: 'Colección Exclusiva 2025',
   eyebrow: 'Pequeños detalles,',
   title: 'grandes',
   titleAccent: 'recuerdos',
@@ -11,6 +10,8 @@ export const DEFAULT_HERO = {
   buttonText: 'Descubre la colección',
   buttonLink: '/tienda',
   image: 'https://emilmarpatricia.x02.me/i/TQQNS.png',
+  video: '',
+  mediaType: 'image',
 }
 
 export const DEFAULT_BANNERS = {
@@ -30,25 +31,47 @@ export const DEFAULT_BANNERS = {
   },
 }
 
+export const DEFAULT_REGISTER_BANNER = {
+  enabled: true,
+  eyebrow: 'BENEFICIO EXCLUSIVO DE BIENVENIDA',
+  title: '10% OFF',
+  text: 'Crea tu cuenta hoy y disfruta de un 10% de descuento en tu primera compra con el código:',
+  couponCode: 'BIENVENIDA',
+  benefit1: 'Descuento de bienvenida',
+  benefit2: 'Seguimiento de pedidos',
+  benefit3: 'Ofertas exclusivas',
+  buttonText: 'Registrarme y Obtener 10% OFF',
+}
+
+export const DEFAULT_TOP_BAR = {
+  enabled: true,
+  text1: 'Envío GRATIS en compras superiores a $60',
+  text2: '10% OFF en tu primera compra con el código: BIENVENIDA',
+}
+
 export const useSettingsStore = defineStore('settings', {
   state: () => ({
     lowStock: 5,
+    topBar: { ...DEFAULT_TOP_BAR },
     hero: { ...DEFAULT_HERO },
     banners: {
       banner1: { ...DEFAULT_BANNERS.banner1 },
       banner2: { ...DEFAULT_BANNERS.banner2 },
     },
+    registerBanner: { ...DEFAULT_REGISTER_BANNER },
     storeInfo: { ...DEFAULT_STORE },
     loaded: false,
   }),
   actions: {
     async fetch(force = false) {
       if (this.loaded && !force) return
-      const [stockRes, bannersRes, storeRes, heroRes] = await Promise.all([
+      const [stockRes, bannersRes, storeRes, heroRes, registerBannerRes, topBarRes] = await Promise.all([
         getSetting('low_stock_threshold'),
         getSetting('home_promo_banners'),
         getSetting('store_info'),
         getSetting('home_hero'),
+        getSetting('home_register_banner'),
+        getSetting('site_top_bar'),
       ])
 
       if (stockRes.data !== null && stockRes.data !== undefined && stockRes.data !== '') {
@@ -90,7 +113,33 @@ export const useSettingsStore = defineStore('settings', {
         }
       }
 
+      if (registerBannerRes?.data) {
+        try {
+          const parsed = typeof registerBannerRes.data === 'string' ? JSON.parse(registerBannerRes.data) : registerBannerRes.data
+          this.registerBanner = { ...DEFAULT_REGISTER_BANNER, ...(parsed || {}) }
+        } catch {
+          this.registerBanner = { ...DEFAULT_REGISTER_BANNER }
+        }
+      }
+
+      if (topBarRes?.data) {
+        try {
+          const parsed = typeof topBarRes.data === 'string' ? JSON.parse(topBarRes.data) : topBarRes.data
+          this.topBar = {
+            ...DEFAULT_TOP_BAR,
+            ...(parsed || {}),
+            enabled: parsed?.enabled !== undefined ? Boolean(parsed.enabled) : true,
+          }
+        } catch {
+          this.topBar = { ...DEFAULT_TOP_BAR }
+        }
+      }
+
       this.loaded = true
+    },
+    async saveTopBar(newTopBar) {
+      this.topBar = { ...this.topBar, ...newTopBar }
+      return await setSetting('site_top_bar', JSON.stringify(this.topBar))
     },
     async saveStoreInfo(info) {
       this.storeInfo = { ...this.storeInfo, ...info }
@@ -111,6 +160,10 @@ export const useSettingsStore = defineStore('settings', {
         banner2: { ...this.banners.banner2, ...newBanners.banner2 },
       }
       return await setSetting('home_promo_banners', JSON.stringify(this.banners))
+    },
+    async saveRegisterBanner(newBanner) {
+      this.registerBanner = { ...this.registerBanner, ...newBanner }
+      return await setSetting('home_register_banner', JSON.stringify(this.registerBanner))
     },
   },
 })

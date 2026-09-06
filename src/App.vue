@@ -1,6 +1,7 @@
 <script setup>
-import { watch, onMounted, computed } from 'vue'
+import { watch, onMounted, computed, nextTick } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import AOS from 'aos'
 import SiteHeader from '@/components/SiteHeader.vue'
 import SiteFooter from '@/components/SiteFooter.vue'
 import CartDrawer from '@/components/CartDrawer.vue'
@@ -31,6 +32,13 @@ onMounted(async () => {
     await favorites.load()
   }
   ui.hide()
+
+  AOS.init({
+    duration: 750,
+    easing: 'ease-out-cubic',
+    once: true,
+    offset: 50,
+  })
 })
 
 watch(
@@ -47,7 +55,12 @@ watch(
 
 watch(
   () => route.fullPath,
-  () => window.scrollTo({ top: 0 }),
+  () => {
+    window.scrollTo({ top: 0 })
+    setTimeout(() => {
+      AOS.refreshHard()
+    }, 120)
+  },
 )
 </script>
 

@@ -3,7 +3,16 @@ import { STORE } from '@/config'
 import { formatPrice, formatNumber } from '@/utils/format'
 import { supabase } from '@/lib/supabase'
 import { useAuthStore } from '@/store/auth'
-import { insertOrder, listCoupons } from '@/lib/db'
+import {
+  insertOrder,
+  listCoupons,
+  getCouponRules,
+  getCouponUsages,
+  recordCouponUsage,
+  recordOrderCoupon,
+  updateCoupon,
+  checkAndDeactivateExpiredCoupons,
+} from '@/lib/db'
 
 export const useCartStore = defineStore('cart', {
   state: () => ({
@@ -20,17 +29,19 @@ export const useCartStore = defineStore('cart', {
         0,
       ),
     subtotal: (state) =>
-      state.items.reduce((sum, item) => sum + item.price * item.qty, 0),
+      state.items.reduce((sum, item) => sum + Number(item.price) * item.qty, 0),
     itemsDiscountTotal() {
       return Math.max(0, this.regularSubtotal - this.subtotal)
     },
-    discountAmount: (state) =>
-      state.coupon ? (state.subtotal * state.coupon.discount) / 100 : 0,
-    totalSavings() {
-      return this.itemsDiscountTotal + this.discountAmount
+    discountAmount() {
+      if (!this.coupon) return 0
+      return Math.round(this.subtotal * (this.coupon.discount / 100) * 100) / 100
     },
     total() {
       return Math.max(0, this.subtotal - this.discountAmount)
+    },
+    totalSavings() {
+      return this.itemsDiscountTotal + this.discountAmount
     },
     formattedRegularSubtotal() {
       return formatPrice(this.regularSubtotal)
@@ -44,56 +55,59 @@ export const useCartStore = defineStore('cart', {
     },
   },
   actions: {
-    async add(product) {
-      const originalPrice =
-        product.originalPrice || product.oldPrice || product.price
-      const discount = product.discount || 0
+    toggleDrawer(open) {
+      this.drawerOpen = typeof open === 'boolean' ? open : !this.drawerOpen
+    },
+    add(product, qty = 1) {
       const existing = this.items.find((item) => item.id === product.id)
       if (existing) {
-        existing.qty += 1
-        existing.originalPrice = originalPrice
-        existing.price = product.price
-        existing.discount = discount
+        existing.qty = Math.min(
+          existing.qty + qty,
+          product.stock ?? existing.qty + qty,
+        )
       } else {
         this.items.push({
           id: product.id,
           name: product.name,
-          category: product.category,
-          categoryName: product.categoryName,
+          price: Number(product.price),
+          originalPrice: Number(product.oldPrice || product.price),
+          discount: product.discount || 0,
           image: product.image,
-          originalPrice: originalPrice,
-          price: product.price,
-          discount: discount,
-          qty: 1,
+          pos: product.pos || 'center center',
+          stock: product.stock,
+          qty: Math.min(qty, product.stock ?? qty),
         })
       }
       this.drawerOpen = true
-      this.save()
+      this.saveToSupabase()
     },
-    async increase(id) {
-      const item = this.items.find((item) => item.id === id)
-      if (item) item.qty += 1
-      this.save()
+    remove(productId) {
+      this.items = this.items.filter((item) => item.id !== productId)
+      this.saveToSupabase()
     },
-    async decrease(id) {
-      const item = this.items.find((item) => item.id === id)
+    increase(productId) {
+      const item = this.items.find((i) => i.id === productId)
       if (!item) return
-      item.qty -= 1
-      if (item.qty <= 0) this.remove(id)
-      else this.save()
+      if (item.stock !== undefined && item.stock !== null && item.qty >= item.stock) return
+      item.qty++
+      this.saveToSupabase()
     },
-    async remove(id) {
-      this.items = this.items.filter((item) => item.id !== id)
-      this.save()
+    decrease(productId) {
+      const item = this.items.find((i) => i.id === productId)
+      if (!item) return
+      if (item.qty > 1) {
+        item.qty--
+      } else {
+        this.remove(productId)
+      }
+      this.saveToSupabase()
     },
-    toggleDrawer(value) {
-      this.drawerOpen = value ?? !this.drawerOpen
-    },
-    async clear() {
+    clear() {
       this.items = []
-      this.save()
+      this.coupon = null
+      this.clearSaved()
     },
-    async save() {
+    async saveToSupabase() {
       const auth = useAuthStore()
       if (!supabase || !auth.isAuthenticated || !auth.profile?.save_carts) return
       await supabase.from('carts').upsert(
@@ -124,11 +138,50 @@ export const useCartStore = defineStore('cart', {
     async applyCoupon(code) {
       const clean = (code || '').trim().toUpperCase()
       if (!clean) return { error: 'Ingresa un código' }
-      const { data } = await listCoupons()
-      const found = (data || []).find(
-        (c) => c.active && c.code.toUpperCase() === clean,
+
+      await checkAndDeactivateExpiredCoupons()
+
+      const [couponsRes, rules, usages] = await Promise.all([
+        listCoupons(),
+        getCouponRules(),
+        getCouponUsages(),
+      ])
+
+      const found = (couponsRes.data || []).find(
+        (c) => c.code.toUpperCase() === clean,
       )
-      if (!found) return { error: 'Cupón inválido o inactivo' }
+      if (!found) return { error: 'Cupón no encontrado' }
+      if (!found.active) return { error: 'Este cupón se encuentra inactivo o vencido' }
+
+      const rule = rules[clean] || {}
+      const now = new Date()
+
+      if (rule.expires_at) {
+        const expDate = new Date(rule.expires_at)
+        if (!isNaN(expDate.getTime()) && now.getTime() > expDate.getTime()) {
+          await updateCoupon(found.id, { active: false })
+          return { error: 'Este cupón ha vencido y ya no está disponible' }
+        }
+      }
+
+      const codeUsages = usages[clean] || {}
+      const totalUsed = Object.values(codeUsages).reduce((s, v) => s + (Number(v) || 0), 0)
+      if (rule.total_usage_limit && Number(rule.total_usage_limit) > 0) {
+        if (totalUsed >= Number(rule.total_usage_limit)) {
+          await updateCoupon(found.id, { active: false })
+          return { error: 'Este cupón ha alcanzado el límite máximo de usos' }
+        }
+      }
+
+      const auth = useAuthStore()
+      const userKey = auth.isAuthenticated ? auth.user.id : (auth.profile?.phone || null)
+      if (userKey && rule.max_uses_per_user && Number(rule.max_uses_per_user) > 0) {
+        const userUsed = codeUsages[userKey] || 0
+        if (userUsed >= Number(rule.max_uses_per_user)) {
+          return { error: `Ya has utilizado este cupón el máximo permitido (${rule.max_uses_per_user} vez/veces)` }
+        }
+      }
+
       this.coupon = { code: found.code, discount: found.discount }
       return { ok: true }
     },
@@ -198,7 +251,7 @@ export const useCartStore = defineStore('cart', {
     async checkout() {
       const auth = useAuthStore()
       if (supabase && auth.isAuthenticated) {
-        await insertOrder(
+        const res = await insertOrder(
           {
             user_id: auth.user.id,
             customer_name: auth.fullName,
@@ -208,6 +261,16 @@ export const useCartStore = defineStore('cart', {
           },
           this.items,
         )
+
+        if (res.data?.id && this.coupon) {
+          await recordOrderCoupon(res.data.id, {
+            code: this.coupon.code,
+            discount: this.coupon.discount,
+            amount: this.discountAmount,
+          })
+          const userKey = auth.user.id || auth.profile?.phone || 'anonymous'
+          await recordCouponUsage(this.coupon.code, userKey)
+        }
       }
       window.open(this.whatsappUrl(), '_blank')
     },
@@ -240,8 +303,10 @@ export const useCartStore = defineStore('cart', {
         : this.subtotal
 
       const itemsDiscount = Math.max(0, regularSubtotal - itemsSubtotal)
-      const couponDisc = isCustom ? 0 : this.discountAmount
-      const totalSavings = isCustom ? itemsDiscount : this.totalSavings
+      const couponCode = isCustom ? (customOrder.coupon_code || '') : (this.coupon?.code || '')
+      const couponDiscountPct = isCustom ? (customOrder.coupon_discount || 0) : (this.coupon?.discount || 0)
+      const couponDisc = isCustom ? (Number(customOrder.coupon_amount) || 0) : this.discountAmount
+      const totalSavings = isCustom ? (itemsDiscount + couponDisc) : this.totalSavings
       const finalTotal = isCustom
         ? Number(customOrder.subtotal) || itemsSubtotal
         : this.total
@@ -289,6 +354,8 @@ export const useCartStore = defineStore('cart', {
         })
         .join('')
 
+      const logoUrl = typeof window !== 'undefined' ? `${window.location.origin}/img/logo.png` : '/img/logo.png'
+
       return `<!doctype html>
 <html lang="es">
   <head>
@@ -315,14 +382,24 @@ export const useCartStore = defineStore('cart', {
       .head {
         display: flex;
         justify-content: space-between;
-        align-items: flex-start;
+        align-items: center;
         border-bottom: 2px solid #fce8ed;
         padding-bottom: 24px;
         margin-bottom: 28px;
       }
+      .brand-box {
+        display: flex;
+        align-items: center;
+        gap: 16px;
+      }
+      .brand-logo {
+        height: 52px;
+        width: auto;
+        object-fit: contain;
+      }
       .brand {
         font-family: Georgia, 'Times New Roman', serif;
-        font-size: 32px;
+        font-size: 30px;
         font-weight: 700;
         color: #c92a54;
         letter-spacing: -0.5px;
@@ -333,7 +410,7 @@ export const useCartStore = defineStore('cart', {
         letter-spacing: 2.5px;
         text-transform: uppercase;
         color: #9c878e;
-        margin-top: 6px;
+        margin-top: 4px;
         display: block;
       }
       .invoice-meta {
@@ -516,9 +593,12 @@ export const useCartStore = defineStore('cart', {
   <body>
     <div class="wrap">
       <div class="head">
-        <div>
-          <div class="brand">${STORE.name}</div>
-          <span class="brand-sub">Accesorios &amp; Joyería Fina</span>
+        <div class="brand-box">
+          <img src="${logoUrl}" class="brand-logo" alt="${STORE.name}" />
+          <div>
+            <div class="brand">${STORE.name}</div>
+            <span class="brand-sub">Accesorios &amp; Joyería Fina</span>
+          </div>
         </div>
         <div class="invoice-meta">
           <div class="invoice-title">Comprobante de Compra</div>
@@ -575,7 +655,7 @@ export const useCartStore = defineStore('cart', {
           ${
             couponDisc > 0
               ? `<div class="tot-row disc">
-                  <span>Cupón ${this.coupon?.code || ''} (-${this.coupon?.discount || 0}%)</span>
+                  <span>Cupón ${couponCode} (-${couponDiscountPct}%)</span>
                   <span>-${formatPrice(couponDisc)}</span>
                 </div>`
               : ''

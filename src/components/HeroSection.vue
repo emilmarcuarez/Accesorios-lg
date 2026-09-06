@@ -12,7 +12,17 @@ onMounted(() => {
 
 const hero = computed(() => settings.hero || DEFAULT_HERO)
 
+const hasVideo = computed(() => {
+  return Boolean(hero.value.video && hero.value.video.trim())
+})
+
+const heroVideoSrc = computed(() => {
+  if (!hero.value.video) return ''
+  return resolveImage(hero.value.video)
+})
+
 const heroBg = computed(() => {
+  if (hasVideo.value) return 'none'
   const imgUrl = hero.value.image || DEFAULT_HERO.image || '/img/banner.png'
   const resolved = resolveImage(imgUrl)
   return `url('${resolved}'), url('/img/banner.png')`
@@ -20,29 +30,27 @@ const heroBg = computed(() => {
 </script>
 
 <template>
-  <section class="hero" :style="{ backgroundImage: heroBg }">
+  <section class="hero" :class="{ 'with-video': hasVideo }" :style="{ backgroundImage: heroBg }">
+    <!-- Video de fondo si está configurado -->
+    <video
+      v-if="hasVideo"
+      :src="heroVideoSrc"
+      autoplay
+      loop
+      muted
+      playsinline
+      class="hero-video-bg"
+    ></video>
+
     <!-- Capa de sombra y gradiente elegante multicapa -->
     <div class="hero-shade"></div>
 
-    <!-- Destellos dorados parpadeantes -->
-    <span class="spark spark-a">&#10022;</span>
-    <span class="spark spark-b">&#10022;</span>
-    <span class="spark spark-c">&#10022;</span>
-
-    <!-- Corazones flotantes delicados -->
-    <span class="heart he-a"><AppIcon name="heart" :size="26" /></span>
-    <span class="heart he-b"><AppIcon name="heart" :size="18" /></span>
-    <span class="heart he-c"><AppIcon name="heart" :size="22" /></span>
-    <span class="heart he-d"><AppIcon name="heart" :size="16" /></span>
+    <!-- Luces ambientales de lujo (Aurora glow difuminado que respira lentamente) -->
+    <div class="luxury-aurora aurora-one" aria-hidden="true"></div>
+    <div class="luxury-aurora aurora-two" aria-hidden="true"></div>
 
     <div class="container hero-inner">
       <div class="hero-copy">
-        <!-- Badge Chic Superior -->
-        <div v-if="hero.badge" class="hero-badge">
-          <span class="badge-sparkle">&#10022;</span>
-          <span>{{ hero.badge }}</span>
-        </div>
-
         <p class="hero-eyebrow">{{ hero.eyebrow || 'Pequeños detalles,' }}</p>
 
         <h1 class="hero-title">
@@ -59,13 +67,16 @@ const heroBg = computed(() => {
             <span>{{ hero.buttonText || 'Descubre la colección' }}</span>
             <AppIcon name="chevronRight" :size="18" class="btn-arrow" />
           </router-link>
-
-          <div class="hero-note">
-            <span class="note-icon"><AppIcon name="heart" :size="15" /></span>
-            <span>Hecho con amor para ti</span>
-          </div>
         </div>
       </div>
+    </div>
+
+    <!-- Indicador de desplazamiento sutil y elegante -->
+    <div class="hero-scroll-indicator" aria-hidden="true">
+      <span class="scroll-mouse">
+        <span class="scroll-wheel"></span>
+      </span>
+      <span class="scroll-text">Explora la colección</span>
     </div>
 
     <!-- Corte Inferior en Ondas Elegantes (Wave Organic Shape Divider) -->
@@ -93,17 +104,29 @@ const heroBg = computed(() => {
   background-size: cover;
   background-position: center right;
   background-repeat: no-repeat;
-  min-height: 620px;
+  min-height: 780px; /* Más alto para que el video y la portada luzcan más amplios y cinematográficos */
   display: flex;
   align-items: center;
-  padding: 60px 0 110px; /* Espacio inferior para el corte en ondas */
+  padding: 100px 0 140px; /* Espacio superior e inferior generoso */
   transition: background-image 0.5s ease-in-out;
+}
+
+.hero-video-bg {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  z-index: 0;
+  pointer-events: none;
 }
 
 /* Sombra degradada multicapa para máxima legibilidad y lujo */
 .hero-shade {
   position: absolute;
   inset: 0;
+  z-index: 1;
   background: linear-gradient(
     90deg,
     rgba(255, 248, 250, 0.96) 0%,
@@ -113,6 +136,50 @@ const heroBg = computed(() => {
     rgba(255, 248, 250, 0) 100%
   );
   pointer-events: none;
+}
+
+/* Luces ambientales Aurora de lujo (sustituyen las estrellas por brillo refinado) */
+.luxury-aurora {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(85px);
+  pointer-events: none;
+  z-index: 1;
+  opacity: 0.35;
+  animation: auroraBreathe 10s ease-in-out infinite alternate;
+}
+
+.aurora-one {
+  width: 440px;
+  height: 440px;
+  top: 15%;
+  left: 20%;
+  background: radial-gradient(circle, rgba(254, 205, 211, 0.8) 0%, rgba(244, 114, 182, 0.35) 60%, transparent 80%);
+}
+
+.aurora-two {
+  width: 520px;
+  height: 520px;
+  bottom: 20%;
+  right: 15%;
+  background: radial-gradient(circle, rgba(254, 240, 138, 0.5) 0%, rgba(251, 207, 232, 0.35) 60%, transparent 80%);
+  animation-duration: 12s;
+  animation-delay: -5s;
+}
+
+@keyframes auroraBreathe {
+  0% {
+    transform: translate(0, 0) scale(1);
+    opacity: 0.25;
+  }
+  50% {
+    transform: translate(30px, -20px) scale(1.15);
+    opacity: 0.45;
+  }
+  100% {
+    transform: translate(-25px, 15px) scale(0.95);
+    opacity: 0.3;
+  }
 }
 
 .hero-inner {
@@ -125,48 +192,13 @@ const heroBg = computed(() => {
   max-width: 580px;
 }
 
-/* Badge Chic */
-.hero-badge {
-  display: inline-flex;
-  align-items: center;
-  gap: 7px;
-  background: rgba(255, 255, 255, 0.85);
-  backdrop-filter: blur(8px);
-  border: 1px solid rgba(224, 137, 160, 0.35);
-  color: var(--rose-600, #b83259);
-  padding: 6px 14px;
-  border-radius: 30px;
-  font-size: 12.5px;
-  font-weight: 600;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  margin-bottom: 16px;
-  box-shadow: 0 4px 14px rgba(216, 90, 127, 0.12);
-  animation: badgeGlow 4s ease-in-out infinite alternate;
-}
-
-.badge-sparkle {
-  color: #e5a93c;
-  font-size: 13px;
-}
-
-@keyframes badgeGlow {
-  0% {
-    box-shadow: 0 4px 14px rgba(216, 90, 127, 0.12);
-    border-color: rgba(224, 137, 160, 0.35);
-  }
-  100% {
-    box-shadow: 0 6px 20px rgba(216, 90, 127, 0.25);
-    border-color: rgba(216, 90, 127, 0.6);
-  }
-}
-
 .hero-eyebrow {
   font-size: 22px;
   font-weight: 400;
   color: var(--ink-700, #4a343d);
   margin: 0 0 6px;
   letter-spacing: 0.01em;
+  animation: heroFadeIn 0.9s 0.1s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
 .hero-title {
@@ -177,6 +209,7 @@ const heroBg = computed(() => {
   color: var(--ink-900, #201318);
   margin: 0;
   text-shadow: 0 2px 8px rgba(255, 255, 255, 0.6);
+  animation: heroFadeIn 1s 0.2s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
 .hero-title .accent {
@@ -196,6 +229,7 @@ const heroBg = computed(() => {
   color: var(--ink-500, #6e5861);
   max-width: 440px;
   line-height: 1.55;
+  animation: heroFadeIn 1.1s 0.3s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
 .hero-actions {
@@ -203,24 +237,28 @@ const heroBg = computed(() => {
   align-items: center;
   gap: 22px;
   flex-wrap: wrap;
+  animation: heroFadeIn 1.2s 0.4s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
-/* Botón llamativo con efecto de brillo fluido */
+/* Botón llamativo con toque de negro sofisticado */
 .hero-btn {
   position: relative;
   overflow: hidden;
   display: inline-flex;
   align-items: center;
-  gap: 10px;
-  background: var(--rose-gradient, linear-gradient(135deg, #d85a7f 0%, #b83259 100%));
+  gap: 12px;
+  background: #111111;
+  border: 1.5px solid #111111;
   color: #ffffff;
-  padding: 16px 36px;
-  border-radius: 50px;
-  font-size: 15.5px;
+  padding: 16px 38px;
+  border-radius: 2px;
+  font-size: 14.5px;
   font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
   text-decoration: none;
-  box-shadow: 0 10px 28px rgba(184, 50, 89, 0.35);
-  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.18);
+  transition: all 0.35s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .hero-btn::after {
@@ -233,55 +271,105 @@ const heroBg = computed(() => {
   background: linear-gradient(
     90deg,
     rgba(255, 255, 255, 0) 0%,
-    rgba(255, 255, 255, 0.35) 50%,
+    rgba(255, 255, 255, 0.25) 50%,
     rgba(255, 255, 255, 0) 100%
   );
   transform: skewX(-22deg);
-  transition: none;
+  animation: btnSweep 4.5s infinite ease-in-out;
+  pointer-events: none;
+}
+
+@keyframes btnSweep {
+  0%, 65% {
+    left: -120%;
+  }
+  85%, 100% {
+    left: 200%;
+  }
 }
 
 .hero-btn:hover {
-  transform: translateY(-3px) scale(1.02);
-  box-shadow: 0 14px 34px rgba(184, 50, 89, 0.45);
-}
-
-.hero-btn:hover::after {
-  left: 140%;
-  transition: left 0.85s ease-in-out;
+  background: #2a2a2a;
+  border-color: #2a2a2a;
+  color: #ffffff;
+  transform: translateY(-3px);
+  box-shadow: 0 14px 38px rgba(0, 0, 0, 0.28);
 }
 
 .hero-btn:hover .btn-arrow {
-  transform: translateX(4px);
+  transform: translateX(5px);
 }
 
 .btn-arrow {
   transition: transform 0.25s ease;
 }
 
-.hero-note {
-  display: inline-flex;
+/* Indicador de scroll elegante */
+.hero-scroll-indicator {
+  position: absolute;
+  bottom: 82px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
   align-items: center;
-  gap: 8px;
-  font-family: var(--font-display);
-  font-size: 17.5px;
-  color: var(--rose-600, #b83259);
-  font-weight: 500;
+  gap: 6px;
+  z-index: 2;
+  opacity: 0.75;
+  pointer-events: none;
 }
 
-.note-icon {
-  display: inline-flex;
-  align-items: center;
+.scroll-mouse {
+  width: 22px;
+  height: 34px;
+  border: 2px solid rgba(184, 50, 89, 0.45);
+  border-radius: 14px;
+  display: flex;
   justify-content: center;
-  color: var(--rose-500);
-  animation: pulseHeart 2s infinite ease-in-out;
+  padding-top: 6px;
+  background: rgba(255, 255, 255, 0.35);
+  backdrop-filter: blur(4px);
 }
 
-@keyframes pulseHeart {
-  0%, 100% {
-    transform: scale(1);
+.scroll-wheel {
+  width: 3.5px;
+  height: 7px;
+  background: var(--rose-600, #b83259);
+  border-radius: 3px;
+  animation: mouseScroll 2s infinite ease-in-out;
+}
+
+.scroll-text {
+  font-size: 10px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--ink-500, #6d525d);
+  font-weight: 600;
+}
+
+@keyframes mouseScroll {
+  0% {
+    transform: translateY(0);
+    opacity: 1;
   }
-  50% {
-    transform: scale(1.2);
+  60% {
+    transform: translateY(9px);
+    opacity: 0.1;
+  }
+  100% {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+@keyframes heroFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(22px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
   }
 }
 
@@ -313,92 +401,11 @@ const heroBg = computed(() => {
   fill: #ffffff;
 }
 
-/* Partículas flotantes */
-.spark {
-  position: absolute;
-  color: #e6a836;
-  font-size: 22px;
-  z-index: 1;
-  pointer-events: none;
-  animation: twinkle 3.2s ease-in-out infinite;
-}
-
-.spark-a {
-  top: 18%;
-  left: 45%;
-}
-
-.spark-b {
-  top: 26%;
-  right: 12%;
-  animation-delay: 1.4s;
-}
-
-.spark-c {
-  top: 48%;
-  left: 38%;
-  font-size: 17px;
-  animation-delay: 2.1s;
-}
-
-.heart {
-  position: absolute;
-  color: rgba(217, 109, 139, 0.45);
-  z-index: 1;
-  pointer-events: none;
-  animation: float 7s ease-in-out infinite;
-}
-
-.he-a {
-  top: 16%;
-  right: 28%;
-}
-
-.he-b {
-  bottom: 24%;
-  left: 48%;
-  animation-delay: 1.2s;
-}
-
-.he-c {
-  top: 36%;
-  right: 16%;
-  animation-delay: 2.4s;
-}
-
-.he-d {
-  bottom: 32%;
-  right: 34%;
-  animation-delay: 3.4s;
-}
-
-@keyframes float {
-  0%, 100% {
-    transform: translateY(0) rotate(-6deg);
-    opacity: 0.75;
-  }
-  50% {
-    transform: translateY(-24px) rotate(8deg);
-    opacity: 0.35;
-  }
-}
-
-@keyframes twinkle {
-  0%, 100% {
-    opacity: 0.35;
-    transform: scale(0.9);
-  }
-  50% {
-    opacity: 1;
-    transform: scale(1.25);
-  }
-}
-
 @media (max-width: 900px) {
   .hero {
-    min-height: 520px;
+    min-height: 640px;
     background-position: center;
-    padding: 50px 0 90px;
+    padding: 70px 0 110px;
   }
   .hero-shade {
     background: linear-gradient(
@@ -422,18 +429,15 @@ const heroBg = computed(() => {
   .hero-wave {
     height: 48px;
   }
+  .hero-scroll-indicator {
+    display: none;
+  }
 }
 
 @media (max-width: 480px) {
   .hero {
-    min-height: 470px;
-    padding: 40px 0 75px;
-  }
-  .he-c,
-  .he-d,
-  .spark-b,
-  .spark-c {
-    display: none;
+    min-height: 560px;
+    padding: 55px 0 90px;
   }
   .hero-btn {
     padding: 14px 28px;

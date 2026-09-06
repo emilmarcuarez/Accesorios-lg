@@ -25,9 +25,9 @@ onMounted(() => catalog.fetch())
 <template>
   <section class="arrivals">
     <div class="container">
-      <div class="section-head">
+      <div class="section-head" data-aos="fade-down">
         <span class="eyebrow">Recién llegados</span>
-        <h2 class="section-title">Nuevos Llegados</h2>
+        <h2 class="section-title">Lo más nuevo</h2>
         <div class="scroll-ctrls">
           <button class="circle-btn" aria-label="Anterior" @click="scrollBy(-1)">
             <AppIcon name="chevronLeft" :size="18" />
@@ -39,7 +39,13 @@ onMounted(() => catalog.fetch())
       </div>
 
       <div ref="track" class="arrival-track">
-        <article v-for="product in arrivals" :key="product.id" class="arrival-card">
+        <article
+          v-for="(product, index) in arrivals"
+          :key="product.id"
+          class="arrival-card"
+          data-aos="fade-up"
+          :data-aos-delay="Math.min(index * 70, 450)"
+        >
           <router-link :to="`/producto/${product.id}`" class="arrival-media">
             <img :src="resolveImage(product.image)" :alt="product.name" loading="lazy" />
             <span v-if="product.discount" class="tag tag-discount">-{{ product.discount }}% OFF</span>
@@ -93,9 +99,9 @@ onMounted(() => catalog.fetch())
 }
 
 .circle-btn {
-  width: 42px;
-  height: 42px;
-  border-radius: 50%;
+  width: 38px;
+  height: 38px;
+  border-radius: 2px;
   border: 1px solid var(--rose-300);
   display: inline-flex;
   align-items: center;
@@ -128,15 +134,16 @@ onMounted(() => catalog.fetch())
   scroll-snap-align: start;
   flex: 0 0 220px;
   background: var(--white);
-  border-radius: var(--radius-md);
+  border-radius: 2px;
   overflow: hidden;
-  border: 1px solid var(--line);
-  transition: transform 0.3s ease, box-shadow 0.3s ease;
+  border: 1px solid #e8e8e8;
+  transition: transform 0.25s ease, box-shadow 0.25s ease, border-color 0.25s ease;
 }
 
 .arrival-card:hover {
-  transform: translateY(-5px);
-  box-shadow: var(--shadow-md);
+  transform: translateY(-4px);
+  border-color: #111111;
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.08);
 }
 
 .arrival-media {
@@ -165,19 +172,24 @@ onMounted(() => catalog.fetch())
 }
 
 .tag-discount {
-  background: linear-gradient(135deg, #e84a6f 0%, #c92a54 100%);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  background: #111111;
+  color: var(--white);
+  padding: 3px 7px;
+  font-size: 9.5px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  border-radius: 2px;
   font-weight: 700;
 }
 
 .arrival-name {
   display: block;
   padding: 12px 14px 6px;
-  font-family: var(--font-display);
-  font-size: 16px;
+  font-family: var(--font-body);
+  font-size: 14px;
   font-weight: 600;
-  color: var(--ink-900);
-  line-height: 1.2;
+  color: #111111;
+  line-height: 1.3;
   display: -webkit-box;
   -webkit-line-clamp: 1;
   -webkit-box-orient: vertical;
@@ -185,7 +197,7 @@ onMounted(() => catalog.fetch())
 }
 
 .arrival-name:hover {
-  color: var(--rose-600);
+  color: #666666;
 }
 
 .arrival-foot {
@@ -204,29 +216,30 @@ onMounted(() => catalog.fetch())
 .arrival-price {
   font-size: 15px;
   font-weight: 600;
-  color: var(--ink-900);
+  color: #111111;
 }
 
 .arrival-old-price {
   font-size: 12px;
-  color: var(--ink-400);
+  color: #999999;
   text-decoration: line-through;
 }
 
 .mini-add {
-  width: 34px;
-  height: 34px;
-  border-radius: 50%;
-  background: var(--rose-gradient);
+  width: 32px;
+  height: 32px;
+  border-radius: 2px;
+  background: #111111;
   color: var(--white);
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  transition: transform 0.2s ease;
+  transition: all 0.2s ease;
 }
 
 .mini-add:hover {
-  transform: scale(1.12);
+  background: #333333;
+  transform: scale(1.05);
 }
 
 .empty {

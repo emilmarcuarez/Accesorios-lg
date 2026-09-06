@@ -12,7 +12,13 @@ const features = [
 <template>
   <section class="features">
     <div class="container features-grid">
-      <div v-for="item in features" :key="item.title" class="feature">
+      <div
+        v-for="(item, index) in features"
+        :key="item.title"
+        class="feature"
+        data-aos="fade-up"
+        :data-aos-delay="index * 80"
+      >
         <div class="feature-icon"><AppIcon :name="item.icon" :size="26" /></div>
         <div>
           <p class="feature-title">{{ item.title }}</p>
@@ -25,7 +31,10 @@ const features = [
 
 <style scoped>
 .features {
-  padding: 40px 0;
+  padding: 50px 0;
+  background: #ffffff;
+  border-top: 1px solid rgba(234, 169, 187, 0.22);
+  border-bottom: 1px solid rgba(234, 169, 187, 0.22);
 }
 
 .features-grid {
@@ -42,10 +51,11 @@ const features = [
 
 .feature-icon {
   flex: 0 0 auto;
-  width: 56px;
-  height: 56px;
-  border-radius: 16px;
-  background: var(--rose-100);
+  width: 54px;
+  height: 54px;
+  border-radius: 2px;
+  background: var(--rose-50);
+  border: 1px solid rgba(234, 169, 187, 0.4);
   color: var(--rose-600);
   display: inline-flex;
   align-items: center;

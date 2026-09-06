@@ -133,11 +133,6 @@ async function save() {
           </template>
         </div>
         <p class="hint">Recomendado: 1200×1200 px (cuadrada)</p>
-
-        <div class="field" v-if="form.image">
-          <label>URL de la imagen</label>
-          <input v-model="form.image" type="text" />
-        </div>
       </div>
 
       <div class="form-col">

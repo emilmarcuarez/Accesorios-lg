@@ -286,6 +286,42 @@ create policy "images_auth_upload" on storage.objects
   for insert with check (bucket_id = 'images' and auth.role() = 'authenticated');
 
 -- ------------------------------------------------------------
+-- 8.1. STORAGE: bucket para videos del Header (Hero)
+-- ------------------------------------------------------------
+insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+values (
+  'hero-videos',
+  'hero-videos',
+  true,
+  104857600, -- 100 MB
+  array['video/mp4', 'video/webm', 'video/quicktime', 'image/png', 'image/jpeg', 'image/webp']
+)
+on conflict (id) do update set
+  public = true,
+  file_size_limit = 104857600,
+  allowed_mime_types = array['video/mp4', 'video/webm', 'video/quicktime', 'image/png', 'image/jpeg', 'image/webp'];
+
+-- Lectura pública para cualquier visitante
+drop policy if exists "hero_videos_public_select" on storage.objects;
+create policy "hero_videos_public_select" on storage.objects
+  for select using (bucket_id = 'hero-videos');
+
+-- Subida para administradores
+drop policy if exists "hero_videos_auth_insert" on storage.objects;
+create policy "hero_videos_auth_insert" on storage.objects
+  for insert with check (bucket_id = 'hero-videos' and auth.role() = 'authenticated');
+
+-- Actualización para administradores
+drop policy if exists "hero_videos_auth_update" on storage.objects;
+create policy "hero_videos_auth_update" on storage.objects
+  for update using (bucket_id = 'hero-videos' and auth.role() = 'authenticated');
+
+-- Eliminación para administradores (permite borrar el video anterior)
+drop policy if exists "hero_videos_auth_delete" on storage.objects;
+create policy "hero_videos_auth_delete" on storage.objects
+  for delete using (bucket_id = 'hero-videos' and auth.role() = 'authenticated');
+
+-- ------------------------------------------------------------
 -- 9. IMAGEN EN CATEGORÍAS (migración)
 -- ------------------------------------------------------------
 alter table public.categories

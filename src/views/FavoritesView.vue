@@ -30,7 +30,7 @@ watch(() => auth.user, async (user) => {
 
 <template>
   <main class="fav-page">
-    <section class="fav-hero">
+    <section class="fav-hero" data-aos="fade-down">
       <div class="container">
         <span class="eyebrow">Tu selección</span>
         <h1 class="fav-title">Favoritos</h1>
@@ -39,7 +39,7 @@ watch(() => auth.user, async (user) => {
     </section>
 
     <section v-if="!auth.isAuthenticated" class="container fav-empty-wrap">
-      <div class="fav-empty">
+      <div class="fav-empty" data-aos="fade-up">
         <div class="fav-empty-icon"><AppIcon name="heart" :size="34" /></div>
         <h2 class="fav-empty-title">Inicia sesión</h2>
         <p class="fav-empty-text">Inicia sesión para ver y guardar tus productos favoritos.</p>
@@ -49,12 +49,18 @@ watch(() => auth.user, async (user) => {
 
     <section v-else-if="favoriteProducts.length" class="container fav-grid-wrap">
       <div class="fav-grid">
-        <ProductCard v-for="product in favoriteProducts" :key="product.id" :product="product" />
+        <ProductCard
+          v-for="(product, index) in favoriteProducts"
+          :key="product.id"
+          :product="product"
+          data-aos="fade-up"
+          :data-aos-delay="Math.min(index * 60, 400)"
+        />
       </div>
     </section>
 
     <section v-else class="container fav-empty-wrap">
-      <div class="fav-empty">
+      <div class="fav-empty" data-aos="fade-up">
         <div class="fav-empty-icon"><AppIcon name="heart" :size="34" /></div>
         <h2 class="fav-empty-title">Aún no tienes favoritos</h2>
         <p class="fav-empty-text">Toca el corazón en un producto para guardarlo aquí.</p>
@@ -71,25 +77,27 @@ watch(() => auth.user, async (user) => {
 }
 
 .fav-hero {
-  background: var(--rose-gradient);
-  color: var(--white);
+  background: linear-gradient(180deg, #fff7f9 0%, #ffffff 100%);
+  border-bottom: 1.5px solid var(--rose-200, #f3c6d2);
+  color: var(--ink-900);
   text-align: center;
   padding: 52px 0;
 }
 
 .fav-hero .eyebrow {
-  color: rgba(255, 255, 255, 0.9);
+  color: var(--rose-600);
 }
 
 .fav-title {
   font-family: var(--font-display);
   font-size: clamp(36px, 6vw, 54px);
   font-weight: 600;
+  color: var(--ink-900);
 }
 
 .fav-sub {
   margin-top: 8px;
-  opacity: 0.95;
+  color: var(--ink-500);
 }
 
 .fav-grid-wrap {

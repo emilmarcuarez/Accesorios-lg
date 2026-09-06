@@ -43,7 +43,7 @@ const open = ref(0)
 
 <template>
   <main class="faq">
-    <section class="faq-hero">
+    <section class="faq-hero" data-aos="fade-down">
       <div class="container">
         <span class="eyebrow">Ayudo</span>
         <h1 class="faq-title">Preguntas frecuentes</h1>
@@ -57,6 +57,8 @@ const open = ref(0)
         :key="i"
         class="faq-item"
         :class="{ open: open === i }"
+        data-aos="fade-up"
+        :data-aos-delay="Math.min(i * 50, 400)"
         @click="open = open === i ? -1 : i"
       >
         <div class="faq-head">
@@ -81,25 +83,27 @@ const open = ref(0)
 }
 
 .faq-hero {
-  background: var(--rose-gradient);
-  color: var(--white);
+  background: linear-gradient(180deg, #fff7f9 0%, #ffffff 100%);
+  border-bottom: 1.5px solid var(--rose-200, #f3c6d2);
+  color: var(--ink-900);
   text-align: center;
   padding: 54px 0;
 }
 
 .faq-hero .eyebrow {
-  color: rgba(255, 255, 255, 0.9);
+  color: var(--rose-600);
 }
 
 .faq-title {
   font-family: var(--font-display);
   font-size: clamp(36px, 6vw, 54px);
   font-weight: 600;
+  color: var(--ink-900);
 }
 
 .faq-sub {
   margin-top: 8px;
-  opacity: 0.95;
+  color: var(--ink-500);
 }
 
 .faq-body {

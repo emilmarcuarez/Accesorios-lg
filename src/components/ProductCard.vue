@@ -56,8 +56,21 @@ settings.fetch()
         </div>
         <span v-if="product.discount" class="discount-badge">-{{ product.discount }}%</span>
       </div>
+
+      <div class="card-stock">
+        <span v-if="product.stock === 0" class="stock-pill out">
+          <span class="stock-dot"></span> Agotado
+        </span>
+        <span v-else-if="product.stock <= (settings.lowStock || 3)" class="stock-pill low">
+          <span class="stock-dot"></span> ¡Solo quedan {{ product.stock }}!
+        </span>
+        <span v-else class="stock-pill in">
+          <span class="stock-dot"></span> {{ product.stock }} disponibles
+        </span>
+      </div>
+
       <button
-        class="btn btn-primary add-btn"
+        class="btn add-btn"
         :disabled="product.stock === 0"
         @click="cart.add(product)"
       >
@@ -71,17 +84,18 @@ settings.fetch()
 <style scoped>
 .card {
   background: var(--white);
-  border: 1px solid var(--line);
-  border-radius: var(--radius-md);
+  border: 1px solid #e8e8e8;
+  border-radius: 2px;
   overflow: hidden;
-  transition: transform 0.3s ease, box-shadow 0.3s ease;
+  transition: transform 0.25s ease, box-shadow 0.25s ease, border-color 0.25s ease;
   display: flex;
   flex-direction: column;
 }
 
 .card:hover {
-  transform: translateY(-6px);
-  box-shadow: var(--shadow-md);
+  transform: translateY(-4px);
+  border-color: #111111;
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.08);
 }
 
 .card-media {
@@ -105,12 +119,12 @@ settings.fetch()
 
 .card-badges {
   position: absolute;
-  top: 12px;
-  left: 12px;
+  top: 10px;
+  left: 10px;
   display: flex;
   flex-direction: column;
   align-items: flex-start;
-  gap: 6px;
+  gap: 5px;
   z-index: 3;
   pointer-events: none;
 }
@@ -118,31 +132,36 @@ settings.fetch()
 .tag {
   display: inline-flex;
   align-items: center;
-  padding: 5px 9px;
-  font-size: 11px;
+  padding: 3px 8px;
+  font-size: 9.5px;
   font-weight: 700;
-  border-radius: 8px;
-  color: var(--white);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
-  letter-spacing: 0.02em;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  border-radius: 2px;
   line-height: 1.2;
 }
 
 .tag-discount {
-  background: linear-gradient(135deg, #e84a6f 0%, #c92a54 100%);
+  background: #111111;
+  color: #ffffff;
 }
 
 .tag-new {
-  background: var(--ink-900);
+  background: #ffffff;
+  border: 1px solid #111111;
+  color: #111111;
 }
 
 .tag-soldout {
-  background: #b04b4b;
+  background: #f4f4f4;
+  border: 1px solid #cccccc;
+  color: #777777;
 }
 
 .tag-low {
-  background: #d97706;
-  color: var(--white);
+  background: #fdf6ec;
+  border: 1px solid #d4a373;
+  color: #8c5b23;
 }
 
 .price-wrap {
@@ -157,18 +176,13 @@ settings.fetch()
   display: inline-flex;
   align-items: center;
   padding: 2px 7px;
-  border-radius: 6px;
-  background: #fff0f3;
-  color: #c92a54;
+  border-radius: 2px;
+  background: #f5f5f5;
+  color: #111111;
   font-size: 11px;
-  font-weight: 700;
-  border: 1px solid #fed7e2;
+  font-weight: 600;
+  border: 1px solid #e0e0e0;
   white-space: nowrap;
-}
-
-.add-btn:disabled {
-  opacity: 0.7;
-  cursor: not-allowed;
 }
 
 .fav {
@@ -206,28 +220,29 @@ settings.fetch()
 }
 
 .card-cat {
-  font-size: 11px;
-  font-weight: 500;
+  font-size: 10.5px;
+  font-weight: 600;
   letter-spacing: 0.12em;
   text-transform: uppercase;
-  color: var(--rose-400);
+  color: #888888;
 }
 
 .card-name {
-  font-family: var(--font-display);
-  font-size: 19px;
+  font-family: var(--font-body);
+  font-size: 14.5px;
   font-weight: 600;
-  color: var(--ink-900);
-  line-height: 1.25;
+  color: #111111;
+  line-height: 1.35;
   display: -webkit-box;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
-  min-height: 2.5em;
+  min-height: 2.7em;
+  transition: color 0.2s ease;
 }
 
 .card-name:hover {
-  color: var(--rose-600);
+  color: #666666;
 }
 
 .price {
@@ -240,29 +255,112 @@ settings.fetch()
 .price-now {
   font-size: 18px;
   font-weight: 600;
-  color: var(--ink-900);
+  color: #111111;
 }
 
 .price-old {
   font-size: 13px;
-  color: var(--ink-400);
+  color: #999999;
   text-decoration: line-through;
+}
+
+.card-stock {
+  display: flex;
+  align-items: center;
+  margin: 2px 0 6px;
+}
+
+.stock-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--font-body);
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1;
+}
+
+.stock-pill.in {
+  color: #15803d;
+}
+
+.stock-pill.low {
+  color: #b45309;
+  font-weight: 700;
+}
+
+.stock-pill.out {
+  color: #dc2626;
+  font-weight: 700;
+}
+
+.stock-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  display: inline-block;
+}
+
+.stock-pill.in .stock-dot {
+  background: #22c55e;
+}
+
+.stock-pill.low .stock-dot {
+  background: #f59e0b;
+}
+
+.stock-pill.out .stock-dot {
+  background: #ef4444;
 }
 
 .add-btn {
   margin-top: auto;
   padding: 11px 16px;
-  font-size: 13.5px;
+  font-size: 11.5px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  background: #111111;
+  color: #ffffff;
+  border: 1px solid #111111;
+  border-radius: 2px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  transition: all 0.25s ease;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.add-btn:hover:not(:disabled) {
+  background: #333333;
+  border-color: #333333;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.16);
+  transform: translateY(-2px);
+}
+
+.add-btn:disabled {
+  background: #f4f4f4;
+  border-color: #e0e0e0;
+  color: #999999;
+  cursor: not-allowed;
+  box-shadow: none;
+  transform: none;
 }
 
 @media (max-width: 760px) {
   .card-body {
-    padding: 14px 13px 16px;
+    padding: 12px 10px 14px;
+    gap: 6px;
+  }
+  .card-name {
+    font-size: 13.5px;
   }
   .add-btn {
-    padding: 10px 10px;
-    font-size: 11.5px;
-    letter-spacing: 0;
+    padding: 9px 8px;
+    font-size: 11px;
+    letter-spacing: 0.04em;
   }
   .add-btn svg {
     display: none;
