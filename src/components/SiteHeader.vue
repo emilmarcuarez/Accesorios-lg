@@ -20,7 +20,6 @@ const navLinks = [
   { label: 'Nosotros', to: '/nosotros' },
   { label: 'Tienda', to: '/tienda' },
   { label: 'Categorías', to: '/categorias' },
-  { label: 'Novedades', to: '/tienda?new=1' },
   { label: 'Regalos', to: '/tienda/personalizados' },
   { label: 'Contactos', to: '/contactos' },
 ]
@@ -38,7 +37,11 @@ function go(route, event) {
 }
 
 function goAccount() {
-  router.push(auth.isAuthenticated ? '/cuenta' : '/login')
+  if (!auth.isAuthenticated) {
+    router.push({ path: '/login' })
+    return
+  }
+  router.push(auth.isAdmin ? '/admin/dashboard' : '/cuenta')
 }
 
 function goFavorites() {
@@ -252,14 +255,14 @@ function goFavorites() {
 
 .search {
   flex: 1;
-  max-width: 300px;
+  max-width: 520px;
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
   background: var(--rose-50);
   border: 1px solid var(--line);
   border-radius: var(--radius-full);
-  padding: 9px 16px;
+  padding: 11px 20px;
   margin-left: auto;
   color: var(--ink-400);
 }

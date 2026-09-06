@@ -1,27 +1,18 @@
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
+import { useRouter } from 'vue-router'
 import AppIcon from '@/components/AppIcon.vue'
-import { listProducts, listCategories, createProduct, updateProduct, deleteProduct } from '@/lib/db'
+import { listProducts, listCategories, deleteProduct } from '@/lib/db'
+import { resolveImage } from '@/utils/image'
+import { formatPrice } from '@/utils/format'
 
+const router = useRouter()
 const products = ref([])
 const categories = ref([])
-const modalOpen = ref(false)
-const editing = ref(null)
-const form = ref(emptyForm())
 
-function emptyForm() {
-  return {
-    name: '',
-    category_id: '',
-    price: 0,
-    old_price: 0,
-    discount: 0,
-    stock: 0,
-    image: '',
-    featured: false,
-    is_new: false,
-  }
-}
+const searchQuery = ref('')
+const categoryFilter = ref('all')
+const statusTab = ref('all') // 'all' | 'in_stock' | 'low_stock' | 'discount' | 'featured'
 
 async function load() {
   const [p, c] = await Promise.all([listProducts(), listCategories()])
@@ -31,58 +22,130 @@ async function load() {
 
 onMounted(load)
 
-function openCreate() {
-  editing.value = null
-  form.value = emptyForm()
-  modalOpen.value = true
-}
+const inStockCount = computed(
+  () => (products.value || []).filter((p) => (p.stock ?? 0) > 0).length,
+)
+const lowStockCount = computed(
+  () => (products.value || []).filter((p) => (p.stock ?? 0) <= 5).length,
+)
+const discountCount = computed(
+  () => (products.value || []).filter((p) => (Number(p.discount) || 0) > 0).length,
+)
+const featuredCount = computed(
+  () => (products.value || []).filter((p) => p.featured).length,
+)
 
-function openEdit(product) {
-  editing.value = product
-  form.value = {
-    name: product.name,
-    category_id: product.category_id,
-    price: product.price,
-    old_price: product.old_price || 0,
-    discount: product.discount || 0,
-    stock: product.stock ?? 0,
-    image: product.image || '',
-    featured: product.featured,
-    is_new: product.is_new,
-  }
-  modalOpen.value = true
-}
+const filteredProducts = computed(() => {
+  let list = products.value || []
 
-async function save() {
-  const payload = {
-    ...form.value,
-    category_id: form.value.category_id || null,
+  // Filtro por pestaña
+  if (statusTab.value === 'in_stock') {
+    list = list.filter((p) => (p.stock ?? 0) > 0)
+  } else if (statusTab.value === 'low_stock') {
+    list = list.filter((p) => (p.stock ?? 0) <= 5)
+  } else if (statusTab.value === 'discount') {
+    list = list.filter((p) => (Number(p.discount) || 0) > 0)
+  } else if (statusTab.value === 'featured') {
+    list = list.filter((p) => p.featured)
   }
-  if (editing.value) await updateProduct(editing.value.id, payload)
-  else await createProduct(payload)
-  modalOpen.value = false
-  await load()
-}
+
+  // Filtro por categoría
+  if (categoryFilter.value !== 'all') {
+    list = list.filter((p) => p.category_id === Number(categoryFilter.value))
+  }
+
+  // Buscador por nombre o ID
+  if (searchQuery.value.trim()) {
+    const q = searchQuery.value.trim().toLowerCase()
+    list = list.filter(
+      (p) =>
+        (p.name && p.name.toLowerCase().includes(q)) ||
+        String(p.id).includes(q) ||
+        (p.categories?.name && p.categories.name.toLowerCase().includes(q)),
+    )
+  }
+
+  return list
+})
 
 async function remove(product) {
-  if (!confirm('¿Eliminar este producto?')) return
+  if (!confirm(`¿Eliminar el producto "${product.name}"?`)) return
   await deleteProduct(product.id)
   await load()
 }
 </script>
 
 <template>
-  <div>
+  <div class="admin-page-wrap">
     <div class="admin-toolbar">
-      <p class="admin-title">Productos</p>
-      <button class="admin-btn" @click="openCreate">
+      <div>
+        <p class="admin-title">Productos</p>
+        <span class="muted">{{ products.length }} producto(s) en total</span>
+      </div>
+      <router-link to="/admin/productos/nuevo" class="admin-btn">
         <AppIcon name="plus" :size="16" />
         Nuevo producto
-      </button>
+      </router-link>
+    </div>
+
+    <!-- Barra de Filtros -->
+    <div class="filter-bar">
+      <div class="tabs">
+        <button
+          class="tab-btn"
+          :class="{ active: statusTab === 'all' }"
+          @click="statusTab = 'all'"
+        >
+          Todos ({{ products.length }})
+        </button>
+        <button
+          class="tab-btn"
+          :class="{ active: statusTab === 'in_stock' }"
+          @click="statusTab = 'in_stock'"
+        >
+          En stock ({{ inStockCount }})
+        </button>
+        <button
+          class="tab-btn"
+          :class="{ active: statusTab === 'low_stock' }"
+          @click="statusTab = 'low_stock'"
+        >
+          Bajo stock ({{ lowStockCount }})
+        </button>
+        <button
+          class="tab-btn"
+          :class="{ active: statusTab === 'discount' }"
+          @click="statusTab = 'discount'"
+        >
+          En oferta ({{ discountCount }})
+        </button>
+        <button
+          class="tab-btn"
+          :class="{ active: statusTab === 'featured' }"
+          @click="statusTab = 'featured'"
+        >
+          Destacados ({{ featuredCount }})
+        </button>
+      </div>
+
+      <div class="filter-tools">
+        <select v-model="categoryFilter" class="filter-select">
+          <option value="all">Todas las categorías</option>
+          <option v-for="c in categories" :key="c.id" :value="c.id">
+            {{ c.name }}
+          </option>
+        </select>
+        <input
+          v-model="searchQuery"
+          type="text"
+          placeholder="Buscar por nombre o ID..."
+          class="search-input"
+        />
+      </div>
     </div>
 
     <div class="admin-card">
-      <div class="admin-table-wrap">
+      <div v-if="filteredProducts.length" class="admin-table-wrap">
         <table class="admin-table">
           <thead>
             <tr>
@@ -91,14 +154,14 @@ async function remove(product) {
               <th>Precio</th>
               <th>Stock</th>
               <th>Etiquetas</th>
-              <th></th>
+              <th class="text-right">Acciones</th>
             </tr>
           </thead>
           <tbody>
-            <tr v-for="product in products" :key="product.id">
+            <tr v-for="product in filteredProducts" :key="product.id">
               <td>
-                <div style="display: flex; align-items: center; gap: 12px">
-                  <img :src="product.image" class="thumb" :alt="product.name" />
+                <div class="prod-cell">
+                  <img :src="resolveImage(product.image)" class="thumb" :alt="product.name" />
                   <div>
                     <strong>{{ product.name }}</strong>
                     <div class="muted" style="font-size: 12px">ID #{{ product.id }}</div>
@@ -106,23 +169,50 @@ async function remove(product) {
                 </div>
               </td>
               <td>{{ product.categories?.name || 'Sin categoría' }}</td>
-              <td>${{ product.price }}</td>
               <td>
-                <span :class="{ 'muted': (product.stock ?? 0) <= 0 }">
+                <div class="price-cell">
+                  <strong v-if="product.discount > 0" class="price-discounted">
+                    {{ formatPrice(product.price * (1 - product.discount / 100)) }}
+                  </strong>
+                  <span :class="{ 'price-crossed': product.discount > 0 }">
+                    {{ formatPrice(product.price) }}
+                  </span>
+                </div>
+              </td>
+              <td>
+                <span
+                  class="stock-pill"
+                  :class="{
+                    'out-of-stock': (product.stock ?? 0) <= 0,
+                    'low-stock': (product.stock ?? 0) > 0 && (product.stock ?? 0) <= 5,
+                  }"
+                >
                   {{ product.stock ?? 0 }} uds
                 </span>
               </td>
               <td>
-                <span v-if="product.featured" class="status st-pagado">Destacado</span>
-                <span v-if="product.is_new" class="status st-enviado">Nuevo</span>
-                <span v-if="product.discount" class="status st-pendiente">-{{ product.discount }}%</span>
+                <div class="tags-group">
+                  <span v-if="product.featured" class="status st-pagado">Destacado</span>
+                  <span v-if="product.is_new" class="status st-enviado">Nuevo</span>
+                  <span v-if="product.discount" class="status st-pendiente">-{{ product.discount }}%</span>
+                </div>
               </td>
               <td>
-                <div class="admin-actions">
-                  <button class="admin-mini" aria-label="Editar" @click="openEdit(product)">
-                    <AppIcon name="plus" :size="15" />
+                <div class="admin-actions right">
+                  <button
+                    class="admin-mini"
+                    aria-label="Editar"
+                    title="Editar producto"
+                    @click="router.push(`/admin/productos/${product.id}/editar`)"
+                  >
+                    <AppIcon name="edit" :size="15" />
                   </button>
-                  <button class="admin-mini danger" aria-label="Eliminar" @click="remove(product)">
+                  <button
+                    class="admin-mini danger"
+                    aria-label="Eliminar"
+                    title="Eliminar producto"
+                    @click="remove(product)"
+                  >
                     <AppIcon name="trash" :size="15" />
                   </button>
                 </div>
@@ -131,73 +221,152 @@ async function remove(product) {
           </tbody>
         </table>
       </div>
-      <p v-if="!products.length" class="admin-empty">No hay productos. Crea el primero.</p>
-    </div>
-
-    <div v-if="modalOpen" class="admin-modal" @click.self="modalOpen = false">
-      <div class="admin-modal-card">
-        <div class="admin-modal-head">
-          <h3 class="admin-modal-title">{{ editing ? 'Editar' : 'Nuevo' }} producto</h3>
-          <button class="admin-mini" @click="modalOpen = false"><AppIcon name="close" :size="16" /></button>
-        </div>
-
-        <div class="admin-form">
-          <div class="admin-field">
-            <label>Nombre</label>
-            <input v-model="form.name" type="text" />
-          </div>
-          <div class="admin-grid-2">
-            <div class="admin-field">
-              <label>Categoría</label>
-              <select v-model="form.category_id">
-                <option value="">Sin categoría</option>
-                <option v-for="cat in categories" :key="cat.id" :value="cat.id">{{ cat.name }}</option>
-              </select>
-            </div>
-            <div class="admin-field">
-              <label>Imagen (URL)</label>
-              <input v-model="form.image" type="text" placeholder="/img/..." />
-            </div>
-          </div>
-          <div class="admin-grid-3">
-            <div class="admin-field">
-              <label>Precio (USD)</label>
-              <input v-model.number="form.price" type="number" step="0.01" />
-            </div>
-            <div class="admin-field">
-              <label>Precio antiguo</label>
-              <input v-model.number="form.old_price" type="number" step="0.01" />
-            </div>
-            <div class="admin-field">
-              <label>Descuento %</label>
-              <input v-model.number="form.discount" type="number" />
-            </div>
-          </div>
-          <div class="admin-field">
-            <label>Stock</label>
-            <input v-model.number="form.stock" type="number" />
-          </div>
-          <div style="display: flex; gap: 18px">
-            <label class="admin-check">
-              <input v-model="form.featured" type="checkbox" /> Destacado
-            </label>
-            <label class="admin-check">
-              <input v-model="form.is_new" type="checkbox" /> Nuevo
-            </label>
-          </div>
-
-          <div class="admin-form-actions">
-            <button class="admin-btn admin-btn-ghost" @click="modalOpen = false">Cancelar</button>
-            <button class="admin-btn" @click="save">Guardar</button>
-          </div>
-        </div>
-      </div>
+      <p v-else-if="searchQuery || categoryFilter !== 'all' || statusTab !== 'all'" class="admin-empty">
+        No se encontraron productos que coincidan con los filtros actuales.
+      </p>
+      <p v-else class="admin-empty">No hay productos. Crea el primero.</p>
     </div>
   </div>
 </template>
 
 <style scoped>
+.admin-page-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.filter-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.tabs {
+  display: flex;
+  gap: 6px;
+  background: #f3ecee;
+  padding: 4px;
+  border-radius: 10px;
+  flex-wrap: wrap;
+}
+
+.tab-btn {
+  padding: 8px 14px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink-600);
+  background: transparent;
+  transition: all 0.2s ease;
+  cursor: pointer;
+}
+
+.tab-btn.active {
+  background: var(--white);
+  color: var(--rose-600);
+  box-shadow: var(--shadow-sm);
+}
+
+.filter-tools {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.filter-select {
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 8px 12px;
+  font-size: 13px;
+  background: var(--white);
+  color: var(--ink-700);
+  outline: none;
+}
+
+.filter-select:focus {
+  border-color: var(--rose-300);
+}
+
+.search-input {
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 8px 14px;
+  font-size: 13px;
+  width: 240px;
+  background: var(--white);
+  outline: none;
+}
+
+.search-input:focus {
+  border-color: var(--rose-300);
+}
+
+.prod-cell {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.thumb {
+  width: 44px;
+  height: 44px;
+  border-radius: 8px;
+  object-fit: cover;
+  border: 1px solid var(--line);
+  background: var(--rose-50);
+}
+
+.price-cell {
+  display: flex;
+  flex-direction: column;
+}
+
+.price-discounted {
+  color: var(--rose-600);
+  font-size: 14px;
+}
+
+.price-crossed {
+  text-decoration: line-through;
+  font-size: 12px;
+  color: var(--ink-400);
+}
+
+.stock-pill {
+  display: inline-block;
+  font-size: 12.5px;
+  color: var(--ink-700);
+}
+
+.stock-pill.low-stock {
+  color: #d97706;
+  font-weight: 600;
+}
+
+.stock-pill.out-of-stock {
+  color: #dc2626;
+  font-weight: 600;
+}
+
+.tags-group {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
 .muted {
   color: var(--ink-400);
+}
+
+.text-right {
+  text-align: right;
+}
+
+.admin-actions.right {
+  justify-content: flex-end;
 }
 </style>

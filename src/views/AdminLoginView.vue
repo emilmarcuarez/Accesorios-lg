@@ -34,7 +34,7 @@ async function submit() {
   <main class="admin-login">
     <div class="admin-card">
       <div class="admin-logo">
-        <span class="admin-dot"></span>
+        <img src="/img/logo.png" alt="Detallitos" />
       </div>
       <h1 class="admin-title">Panel de administración</h1>
       <p class="admin-sub">Acceso restringido para el equipo Detallitos.</p>
@@ -84,21 +84,18 @@ async function submit() {
 }
 
 .admin-logo {
-  width: 64px;
-  height: 64px;
-  border-radius: 50%;
-  background: var(--rose-gradient);
-  margin: 0 auto 20px;
+  width: 96px;
+  height: 96px;
+  margin: 0 auto 18px;
   display: flex;
   align-items: center;
   justify-content: center;
 }
 
-.admin-dot {
-  width: 22px;
-  height: 22px;
-  border-radius: 50%;
-  background: var(--white);
+.admin-logo img {
+  height: 96px;
+  width: auto;
+  object-fit: contain;
 }
 
 .admin-title {

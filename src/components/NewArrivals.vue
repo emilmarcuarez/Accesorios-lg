@@ -1,15 +1,16 @@
 <script setup>
-import { ref } from 'vue'
-import { PRODUCTS } from '@/data/products'
+import { ref, computed, onMounted } from 'vue'
+import { useCatalogStore } from '@/store/catalog'
 import { useCartStore } from '@/store/cart'
 import AppIcon from '@/components/AppIcon.vue'
 import { formatPrice } from '@/utils/format'
+import { resolveImage } from '@/utils/image'
 
 const cart = useCartStore()
+const catalog = useCatalogStore()
 const track = ref(null)
 
-const arrivals = PRODUCTS.filter((p) => p.isNew)
-  .concat(PRODUCTS.filter((p) => !p.isNew).slice(0, 3))
+const arrivals = computed(() => catalog.newArrivals)
 
 function scrollBy(dir) {
   if (!track.value) return
@@ -17,6 +18,8 @@ function scrollBy(dir) {
   const step = card ? card.offsetWidth + 20 : 300
   track.value.scrollBy({ left: dir * step, behavior: 'smooth' })
 }
+
+onMounted(() => catalog.fetch())
 </script>
 
 <template>
@@ -24,7 +27,7 @@ function scrollBy(dir) {
     <div class="container">
       <div class="section-head">
         <span class="eyebrow">Recién llegados</span>
-        <h2 class="section-title">Los mas recientes</h2>
+        <h2 class="section-title">Nuevos Llegados</h2>
         <div class="scroll-ctrls">
           <button class="circle-btn" aria-label="Anterior" @click="scrollBy(-1)">
             <AppIcon name="chevronLeft" :size="18" />
@@ -38,25 +41,26 @@ function scrollBy(dir) {
       <div ref="track" class="arrival-track">
         <article v-for="product in arrivals" :key="product.id" class="arrival-card">
           <router-link :to="`/producto/${product.id}`" class="arrival-media">
-            <img
-              :src="product.image"
-              :alt="product.name"
-              :style="{ objectPosition: product.pos }"
-              loading="lazy"
-            />
-            <span v-if="product.discount" class="tag tag-discount">-{{ product.discount }}%</span>
+            <img :src="resolveImage(product.image)" :alt="product.name" loading="lazy" />
+            <span v-if="product.discount" class="tag tag-discount">-{{ product.discount }}% OFF</span>
           </router-link>
           <router-link :to="`/producto/${product.id}`" class="arrival-name">
             {{ product.name }}
           </router-link>
           <div class="arrival-foot">
-            <span class="arrival-price">{{ formatPrice(product.price) }}</span>
+            <div class="arrival-prices">
+              <span class="arrival-price">{{ formatPrice(product.price) }}</span>
+              <span v-if="product.oldPrice && product.oldPrice > product.price" class="arrival-old-price">
+                {{ formatPrice(product.oldPrice) }}
+              </span>
+            </div>
             <button class="mini-add" aria-label="Agregar al carrito" @click="cart.add(product)">
               <AppIcon name="plus" :size="16" />
             </button>
           </div>
         </article>
       </div>
+      <p v-if="!arrivals.length" class="empty">Aún no hay novedades.</p>
     </div>
   </section>
 </template>
@@ -161,7 +165,9 @@ function scrollBy(dir) {
 }
 
 .tag-discount {
-  background: var(--rose-gradient);
+  background: linear-gradient(135deg, #e84a6f 0%, #c92a54 100%);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  font-weight: 700;
 }
 
 .arrival-name {
@@ -172,6 +178,10 @@ function scrollBy(dir) {
   font-weight: 600;
   color: var(--ink-900);
   line-height: 1.2;
+  display: -webkit-box;
+  -webkit-line-clamp: 1;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
 
 .arrival-name:hover {
@@ -185,10 +195,22 @@ function scrollBy(dir) {
   padding: 4px 14px 14px;
 }
 
+.arrival-prices {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+}
+
 .arrival-price {
   font-size: 15px;
   font-weight: 600;
   color: var(--ink-900);
+}
+
+.arrival-old-price {
+  font-size: 12px;
+  color: var(--ink-400);
+  text-decoration: line-through;
 }
 
 .mini-add {
@@ -205,5 +227,11 @@ function scrollBy(dir) {
 
 .mini-add:hover {
   transform: scale(1.12);
+}
+
+.empty {
+  text-align: center;
+  color: var(--ink-400);
+  padding: 20px;
 }
 </style>

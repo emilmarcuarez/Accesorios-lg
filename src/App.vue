@@ -1,5 +1,5 @@
 <script setup>
-import { watch, onMounted } from 'vue'
+import { watch, onMounted, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import SiteHeader from '@/components/SiteHeader.vue'
 import SiteFooter from '@/components/SiteFooter.vue'
@@ -10,6 +10,7 @@ import { useAuthStore } from '@/store/auth'
 import { useCartStore } from '@/store/cart'
 import { useFavoritesStore } from '@/store/favorites'
 import { useUiStore } from '@/store/ui'
+import { useSettingsStore } from '@/store/settings'
 
 const route = useRoute()
 const router = useRouter()
@@ -17,8 +18,12 @@ const auth = useAuthStore()
 const cart = useCartStore()
 const favorites = useFavoritesStore()
 const ui = useUiStore()
+const settings = useSettingsStore()
+
+const isAdminArea = computed(() => route.path.startsWith('/admin'))
 
 onMounted(async () => {
+  settings.fetch()
   await auth.init()
   await router.isReady()
   if (auth.isAuthenticated) {
@@ -48,9 +53,14 @@ watch(
 
 <template>
   <LoadingOverlay />
-  <SiteHeader />
-  <router-view />
-  <SiteFooter />
-  <CartDrawer />
-  <AuthPromptModal />
+  <template v-if="isAdminArea">
+    <router-view />
+  </template>
+  <template v-else>
+    <SiteHeader />
+    <router-view />
+    <SiteFooter />
+    <CartDrawer />
+    <AuthPromptModal />
+  </template>
 </template>

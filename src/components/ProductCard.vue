@@ -1,8 +1,10 @@
 <script setup>
 import { useCartStore } from '@/store/cart'
 import { useFavoritesStore } from '@/store/favorites'
+import { useSettingsStore } from '@/store/settings'
 import AppIcon from '@/components/AppIcon.vue'
 import { formatPrice } from '@/utils/format'
+import { resolveImage } from '@/utils/image'
 
 const props = defineProps({
   product: { type: Object, required: true },
@@ -10,19 +12,26 @@ const props = defineProps({
 
 const cart = useCartStore()
 const favorites = useFavoritesStore()
+const settings = useSettingsStore()
+
+settings.fetch()
 </script>
 
 <template>
   <article class="card">
     <router-link :to="`/producto/${product.id}`" class="card-media">
       <img
-        :src="product.image"
+        :src="resolveImage(product.image)"
         :alt="product.name"
         :style="{ objectPosition: product.pos }"
         loading="lazy"
       />
-      <span v-if="product.discount" class="tag tag-discount">-{{ product.discount }}%</span>
-      <span v-if="product.isNew" class="tag tag-new">Nuevo</span>
+      <div class="card-badges">
+        <span v-if="product.discount" class="tag tag-discount">-{{ product.discount }}% OFF</span>
+        <span v-if="product.isNew" class="tag tag-new">Nuevo</span>
+        <span v-if="product.stock === 0" class="tag tag-soldout">Agotado</span>
+        <span v-else-if="product.stock <= settings.lowStock" class="tag tag-low">Últimas {{ product.stock }}</span>
+      </div>
       <button
         class="fav"
         :class="{ active: favorites.isFav(product.id) }"
@@ -34,17 +43,26 @@ const favorites = useFavoritesStore()
     </router-link>
 
     <div class="card-body">
-      <p class="card-cat">{{ product.category }}</p>
+      <p class="card-cat">{{ product.categoryName || product.category }}</p>
       <router-link :to="`/producto/${product.id}`" class="card-name">
         {{ product.name }}
       </router-link>
-      <div class="price">
-        <span class="price-now">{{ formatPrice(product.price) }}</span>
-        <span v-if="product.oldPrice" class="price-old">{{ formatPrice(product.oldPrice) }}</span>
+      <div class="price-wrap">
+        <div class="price">
+          <span class="price-now">{{ formatPrice(product.price) }}</span>
+          <span v-if="product.oldPrice && product.oldPrice > product.price" class="price-old">
+            {{ formatPrice(product.oldPrice) }}
+          </span>
+        </div>
+        <span v-if="product.discount" class="discount-badge">-{{ product.discount }}%</span>
       </div>
-      <button class="btn btn-primary add-btn" @click="cart.add(product)">
+      <button
+        class="btn btn-primary add-btn"
+        :disabled="product.stock === 0"
+        @click="cart.add(product)"
+      >
         <AppIcon name="bag" :size="16" />
-        Agregar al carrito
+        {{ product.stock === 0 ? 'Agotado' : 'Agregar al carrito' }}
       </button>
     </div>
   </article>
@@ -69,7 +87,7 @@ const favorites = useFavoritesStore()
 .card-media {
   position: relative;
   display: block;
-  aspect-ratio: 1 / 1.05;
+  aspect-ratio: 1;
   overflow: hidden;
   background: var(--rose-50);
 }
@@ -85,23 +103,72 @@ const favorites = useFavoritesStore()
   transform: scale(1.07);
 }
 
-.tag {
+.card-badges {
   position: absolute;
-  top: 14px;
-  left: 14px;
-  padding: 5px 10px;
+  top: 12px;
+  left: 12px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+  z-index: 3;
+  pointer-events: none;
+}
+
+.tag {
+  display: inline-flex;
+  align-items: center;
+  padding: 5px 9px;
   font-size: 11px;
-  font-weight: 600;
+  font-weight: 700;
   border-radius: 8px;
   color: var(--white);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  letter-spacing: 0.02em;
+  line-height: 1.2;
 }
 
 .tag-discount {
-  background: var(--rose-gradient);
+  background: linear-gradient(135deg, #e84a6f 0%, #c92a54 100%);
 }
 
 .tag-new {
   background: var(--ink-900);
+}
+
+.tag-soldout {
+  background: #b04b4b;
+}
+
+.tag-low {
+  background: #d97706;
+  color: var(--white);
+}
+
+.price-wrap {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 2px;
+}
+
+.discount-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 7px;
+  border-radius: 6px;
+  background: #fff0f3;
+  color: #c92a54;
+  font-size: 11px;
+  font-weight: 700;
+  border: 1px solid #fed7e2;
+  white-space: nowrap;
+}
+
+.add-btn:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
 }
 
 .fav {
@@ -152,6 +219,11 @@ const favorites = useFavoritesStore()
   font-weight: 600;
   color: var(--ink-900);
   line-height: 1.25;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  min-height: 2.5em;
 }
 
 .card-name:hover {

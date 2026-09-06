@@ -1,4 +1,4 @@
-﻿-- ============================================================
+-- ============================================================
 -- Detallitos Accesorios - Esquema Supabase (PostgreSQL)
 -- Ejecutar en el SQL Editor de tu proyecto Supabase.
 -- ============================================================
@@ -269,3 +269,159 @@ create policy "favorites_insert_own" on public.favorites
 drop policy if exists "favorites_update_own" on public.favorites;
 create policy "favorites_update_own" on public.favorites
   for update using (auth.uid() = user_id) with check (auth.uid() = user_id);
+
+-- ------------------------------------------------------------
+-- 8. STORAGE: bucket para imágenes de productos
+-- ------------------------------------------------------------
+insert into storage.buckets (id, name, public)
+values ('images', 'images', true)
+on conflict (id) do nothing;
+
+drop policy if exists "images_public_read" on storage.objects;
+create policy "images_public_read" on storage.objects
+  for select using (bucket_id = 'images');
+
+drop policy if exists "images_auth_upload" on storage.objects;
+create policy "images_auth_upload" on storage.objects
+  for insert with check (bucket_id = 'images' and auth.role() = 'authenticated');
+
+-- ------------------------------------------------------------
+-- 9. IMAGEN EN CATEGORÍAS (migración)
+-- ------------------------------------------------------------
+alter table public.categories
+  add column if not exists image text default '';
+
+-- ------------------------------------------------------------
+-- 10. AJUSTES (umbral de stock, etc.)
+-- ------------------------------------------------------------
+create table if not exists public.settings (
+  key text primary key,
+  value text not null default ''
+);
+insert into public.settings (key, value) values ('low_stock_threshold','5') on conflict (key) do nothing;
+alter table public.settings enable row level security;
+drop policy if exists "settings_read" on public.settings;
+create policy "settings_read" on public.settings for select using (true);
+drop policy if exists "settings_write_admin" on public.settings;
+create policy "settings_write_admin" on public.settings
+  for all using (public.is_admin()) with check (public.is_admin());
+
+-- ------------------------------------------------------------
+-- 11. GALERÍA (Inspírate con nosotros)
+-- ------------------------------------------------------------
+create table if not exists public.gallery (
+  id serial primary key,
+  image text not null,
+  created_at timestamptz not null default now()
+);
+alter table public.gallery enable row level security;
+drop policy if exists "gallery_read" on public.gallery;
+create policy "gallery_read" on public.gallery for select using (true);
+drop policy if exists "gallery_write_admin" on public.gallery;
+create policy "gallery_write_admin" on public.gallery
+  for all using (public.is_admin()) with check (public.is_admin());
+
+-- ------------------------------------------------------------
+-- 12. GESTIÓN DE USUARIOS (PANEL ADMINISTRADOR)
+-- ------------------------------------------------------------
+create extension if not exists "pgcrypto";
+
+-- Columna de email opcional en profiles para facilitar consultas
+alter table public.profiles add column if not exists email text;
+
+-- Permitir a los administradores actualizar perfiles de cualquier usuario
+drop policy if exists "profiles_update_admin" on public.profiles;
+create policy "profiles_update_admin" on public.profiles
+  for update using (public.is_admin()) with check (public.is_admin());
+
+-- Permitir a administradores eliminar perfiles
+drop policy if exists "profiles_delete_admin" on public.profiles;
+create policy "profiles_delete_admin" on public.profiles
+  for delete using (public.is_admin());
+
+-- Función para listar todos los usuarios con datos de auth y perfil
+create or replace function public.admin_get_users()
+returns table (
+  id uuid,
+  email text,
+  name text,
+  lastname text,
+  phone text,
+  role text,
+  created_at timestamptz,
+  last_sign_in_at timestamptz
+)
+language plpgsql
+security definer
+set search_path = public, auth
+as $$
+begin
+  if not public.is_admin() then
+    raise exception 'Acceso denegado. Solo administradores.';
+  end if;
+
+  return query
+  select 
+    u.id,
+    u.email::text,
+    coalesce(p.name, u.raw_user_meta_data ->> 'name'),
+    coalesce(p.lastname, u.raw_user_meta_data ->> 'lastname'),
+    coalesce(p.phone, u.raw_user_meta_data ->> 'phone'),
+    coalesce(p.role, 'customer') as role,
+    u.created_at,
+    u.last_sign_in_at
+  from auth.users u
+  left join public.profiles p on p.id = u.id
+  order by u.created_at desc;
+end;
+$$;
+
+-- Función para cambiar el rol de un usuario (admin o customer)
+create or replace function public.admin_set_user_role(target_user_id uuid, new_role text)
+returns void
+language plpgsql
+security definer
+set search_path = public, auth
+as $$
+begin
+  if not public.is_admin() then
+    raise exception 'Acceso denegado. Solo administradores.';
+  end if;
+
+  if new_role not in ('admin', 'customer') then
+    raise exception 'Rol inválido. Debe ser admin o customer.';
+  end if;
+
+  insert into public.profiles (id, role)
+  values (target_user_id, new_role)
+  on conflict (id) do update set role = new_role;
+end;
+$$;
+
+-- Función para actualizar la contraseña de un usuario directamente
+create or replace function public.admin_update_user_password(target_user_id uuid, new_password text)
+returns void
+language plpgsql
+security definer
+set search_path = public, auth, extensions
+as $$
+begin
+  if not public.is_admin() then
+    raise exception 'Acceso denegado. Solo administradores.';
+  end if;
+
+  if length(new_password) < 6 then
+    raise exception 'La contraseña debe contener al menos 6 caracteres.';
+  end if;
+
+  update auth.users
+  set encrypted_password = extensions.crypt(new_password, extensions.gen_salt('bf', 10)),
+      updated_at = now()
+  where id = target_user_id;
+
+  if not found then
+    raise exception 'Usuario no encontrado.';
+  end if;
+end;
+$$;
+

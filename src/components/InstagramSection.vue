@@ -1,14 +1,16 @@
 <script setup>
+import { ref, onMounted } from 'vue'
 import { STORE } from '@/config'
 import AppIcon from '@/components/AppIcon.vue'
+import { listGallery } from '@/lib/db'
+import { resolveImage } from '@/utils/image'
 
-const gallery = [
-  { src: '/img/mujer.png', pos: 'left' },
-  { src: '/img/banner.png', pos: 'center' },
-  { src: '/img/cadena.png', pos: 'center' },
-  { src: '/img/pulsera.png', pos: 'center' },
-  { src: '/img/regalo.png', pos: 'center' },
-]
+const gallery = ref([])
+
+onMounted(async () => {
+  const res = await listGallery()
+  gallery.value = (res.data || []).map((g) => ({ src: g.image, pos: 'center' }))
+})
 </script>
 
 <template>
@@ -28,7 +30,7 @@ const gallery = [
     </div>
 
     <div class="container">
-      <div class="ig-grid">
+      <div v-if="gallery.length" class="ig-grid">
         <a
           v-for="(img, i) in gallery"
           :key="i"
@@ -36,9 +38,10 @@ const gallery = [
           class="ig-item"
           target="_blank"
         >
-          <img :src="img.src" :alt="STORE.instagram" :style="{ objectPosition: img.pos }" />
+          <img :src="resolveImage(img.src)" :alt="STORE.instagram" :style="{ objectPosition: img.pos }" />
         </a>
       </div>
+      <p v-else class="ig-empty">Pronto más inspiración aquí.</p>
     </div>
   </section>
 </template>
@@ -88,6 +91,12 @@ const gallery = [
 
 .ig-item:hover img {
   transform: scale(1.08);
+}
+
+.ig-empty {
+  text-align: center;
+  color: var(--ink-400);
+  padding: 40px;
 }
 
 @media (max-width: 800px) {

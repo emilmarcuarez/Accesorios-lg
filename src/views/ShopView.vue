@@ -1,22 +1,22 @@
 <script setup>
-import { computed } from 'vue'
+import { computed, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
-import { PRODUCTS } from '@/data/products'
-import { CATEGORIES } from '@/config'
+import { useCatalogStore } from '@/store/catalog'
 import ProductCard from '@/components/ProductCard.vue'
 
 const route = useRoute()
+const catalog = useCatalogStore()
 
 const categorySlug = computed(() => route.params.category || '')
 const isNew = computed(() => route.query.new === '1')
 const search = computed(() => (route.query.q || '').toString().toLowerCase())
 
 const currentCategory = computed(() =>
-  CATEGORIES.find((cat) => cat.slug === categorySlug.value),
+  catalog.categories.find((cat) => cat.slug === categorySlug.value),
 )
 
 const filtered = computed(() => {
-  let list = PRODUCTS
+  let list = catalog.products
   if (categorySlug.value) {
     list = list.filter((p) => p.category === categorySlug.value)
   }
@@ -33,6 +33,8 @@ const title = computed(() => {
   if (isNew.value) return 'Novedades'
   return currentCategory.value ? currentCategory.value.name : 'Tienda'
 })
+
+onMounted(() => catalog.fetch())
 </script>
 
 <template>

@@ -1,32 +1,45 @@
 <script setup>
+import { onMounted } from 'vue'
 import AppIcon from '@/components/AppIcon.vue'
+import { useSettingsStore } from '@/store/settings'
+import { resolveImage } from '@/utils/image'
+
+const settings = useSettingsStore()
+
+onMounted(() => {
+  settings.fetch()
+})
 </script>
 
 <template>
   <section class="promos">
     <div class="container promo-grid">
+      <!-- Banner 1: Estilo Rosa -->
       <div class="promo-card promo-rose">
         <div class="promo-copy">
-          <h3 class="promo-title">Para ti,<br />con amor</h3>
-          <p class="promo-text">Detalles que te hacen brillar todos los días.</p>
-          <a href="/tienda" class="btn btn-light">Nuestra alegría para ti</a>
+          <h3 class="promo-title" style="white-space: pre-line;">{{ settings.banners.banner1.title }}</h3>
+          <p class="promo-text">{{ settings.banners.banner1.text }}</p>
+          <a :href="settings.banners.banner1.buttonLink || '/tienda'" class="btn btn-light">
+            {{ settings.banners.banner1.buttonText }}
+          </a>
         </div>
         <div class="promo-media">
-          <img :src="'/img/mujer.png'" alt="Para ti con amor" />
+          <img :src="resolveImage(settings.banners.banner1.image)" :alt="settings.banners.banner1.title" />
         </div>
       </div>
 
+      <!-- Banner 2: Estilo Crema -->
       <div class="promo-card promo-cream">
         <div class="promo-copy">
-          <h3 class="promo-title">El regalo<br />perfecto</h3>
-          <p class="promo-text">Sorprende a quien más amas con algo inolvidable.</p>
-          <a href="/tienda/personalizados" class="btn btn-ghost">
-            Ver opciones de regalo
+          <h3 class="promo-title" style="white-space: pre-line;">{{ settings.banners.banner2.title }}</h3>
+          <p class="promo-text">{{ settings.banners.banner2.text }}</p>
+          <a :href="settings.banners.banner2.buttonLink || '/tienda/personalizados'" class="btn btn-ghost">
+            {{ settings.banners.banner2.buttonText }}
             <AppIcon name="chevronRight" :size="16" />
           </a>
         </div>
         <div class="promo-media">
-          <img :src="'/img/regalo.png'" alt="El regalo perfecto" />
+          <img :src="resolveImage(settings.banners.banner2.image)" :alt="settings.banners.banner2.title" />
         </div>
       </div>
     </div>

@@ -13,6 +13,10 @@ const menu = [
   { name: 'coupons', label: 'Cupones', icon: 'gift', to: '/admin/cupones' },
   { name: 'discounts', label: 'Descuentos', icon: 'truck', to: '/admin/descuentos' },
   { name: 'orders', label: 'Pedidos / Ventas', icon: 'search', to: '/admin/pedidos' },
+  { name: 'banners', label: 'Banners Inicio', icon: 'sparkles', to: '/admin/banners' },
+  { name: 'gallery', label: 'Galería', icon: 'instagram', to: '/admin/galeria' },
+  { name: 'users', label: 'Usuarios', icon: 'user', to: '/admin/usuarios' },
+  { name: 'settings', label: 'Ajustes', icon: 'shield', to: '/admin/ajustes' },
 ]
 
 async function logout() {
@@ -25,7 +29,7 @@ async function logout() {
   <div class="admin-shell">
     <aside class="admin-side">
       <div class="admin-brand">
-        <span class="brand-script">{{ 'Detallitos' }}</span>
+        <img src="/img/logo.png" class="admin-logo" alt="Detallitos" />
         <span class="admin-brand-sub">Panel Admin</span>
       </div>
 
@@ -91,10 +95,10 @@ async function logout() {
   border-bottom: 1px solid rgba(255, 255, 255, 0.12);
 }
 
-.brand-script {
-  font-family: var(--font-script);
-  font-size: 30px;
-  color: #f0a5b8;
+.admin-logo {
+  height: 44px;
+  width: auto;
+  object-fit: contain;
 }
 
 .admin-brand-sub {
@@ -103,7 +107,7 @@ async function logout() {
   letter-spacing: 0.2em;
   text-transform: uppercase;
   color: rgba(255, 255, 255, 0.5);
-  margin-top: 4px;
+  margin-top: 8px;
 }
 
 .admin-nav {
@@ -192,7 +196,7 @@ async function logout() {
 }
 
 .admin-top-title {
-  font-family: var(--font-display);
+  font-family: var(--font-body);
   font-size: 26px;
   color: var(--ink-900);
 }

@@ -138,10 +138,20 @@ async function logout() {
               <p class="order-date">{{ new Date(order.created_at).toLocaleDateString('es-VE') }}</p>
               <ul class="order-items">
                 <li v-for="item in order.order_items" :key="item.id">
-                  <span>{{ item.qty }}x</span> {{ item.name || 'Producto' }}
+                  <span>{{ item.qty }}x</span> {{ item.products?.name || item.name || 'Producto' }}
                 </li>
               </ul>
-              <p class="order-total">Total: {{ formatPrice(order.subtotal) }}</p>
+              <div class="order-foot-row">
+                <p class="order-total">Total: {{ formatPrice(order.subtotal) }}</p>
+                <button
+                  class="order-invoice-btn"
+                  title="Ver o descargar comprobante / factura"
+                  @click="cart.printInvoice(order)"
+                >
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line></svg>
+                  Factura
+                </button>
+              </div>
             </div>
           </div>
           <p v-else class="empty-note">Aún no tienes compras registradas.</p>
@@ -347,9 +357,36 @@ async function logout() {
   color: var(--ink-700);
 }
 
+.order-foot-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 6px;
+}
+
 .order-total {
   font-weight: 700;
   color: var(--ink-900);
+}
+
+.order-invoice-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 10px;
+  border-radius: 8px;
+  background: var(--white);
+  border: 1px solid var(--line);
+  color: var(--rose-600);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.order-invoice-btn:hover {
+  background: var(--rose-50);
+  border-color: var(--rose-300);
 }
 
 .empty-note {

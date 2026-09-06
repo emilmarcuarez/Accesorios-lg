@@ -1,6 +1,13 @@
 <script setup>
-import { CATEGORIES } from '@/config'
+import { computed, onMounted } from 'vue'
+import { useCatalogStore } from '@/store/catalog'
 import AppIcon from '@/components/AppIcon.vue'
+import { resolveImage } from '@/utils/image'
+
+const catalog = useCatalogStore()
+const categories = computed(() => catalog.categoryCards)
+
+onMounted(() => catalog.fetch())
 </script>
 
 <template>
@@ -16,13 +23,21 @@ import AppIcon from '@/components/AppIcon.vue'
 
     <section class="container cat-grid-wrap">
       <router-link
-        v-for="cat in CATEGORIES"
+        v-for="cat in categories"
         :key="cat.slug"
         :to="`/tienda/${cat.slug}`"
         class="cat-card"
       >
         <div class="cat-image">
-          <img :src="cat.image" :alt="cat.name" :style="{ objectPosition: cat.pos }" />
+          <img
+            v-if="cat.image"
+            :src="resolveImage(cat.image)"
+            :alt="cat.name"
+            :style="{ objectPosition: cat.pos }"
+          />
+          <div v-else class="cat-image-placeholder">
+            <AppIcon name="bag" :size="30" />
+          </div>
         </div>
         <p class="cat-label">{{ cat.name }}</p>
         <span class="cat-arrow"><AppIcon name="chevronRight" :size="18" /></span>
@@ -114,6 +129,16 @@ import AppIcon from '@/components/AppIcon.vue'
   height: 100%;
   object-fit: cover;
   transition: transform 0.5s ease;
+}
+
+.cat-image-placeholder {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--rose-300);
+  background: linear-gradient(135deg, #fbeef1, #f7dde4);
 }
 
 .cat-card:hover .cat-image img {

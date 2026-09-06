@@ -1,20 +1,24 @@
 <script setup>
-import { ref, onMounted, watch } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import AppIcon from '@/components/AppIcon.vue'
 import { useAuthStore } from '@/store/auth'
 import { useFavoritesStore } from '@/store/favorites'
-import { PRODUCTS } from '@/data/products'
+import { useCatalogStore } from '@/store/catalog'
 import ProductCard from '@/components/ProductCard.vue'
 
 const auth = useAuthStore()
 const favorites = useFavoritesStore()
+const catalog = useCatalogStore()
 const ready = ref(false)
 
-const favoriteProducts = () => PRODUCTS.filter((p) => favorites.ids.includes(p.id))
+const favoriteProducts = computed(() =>
+  catalog.products.filter((p) => favorites.ids.includes(p.id)),
+)
 
 onMounted(async () => {
   if (!auth.ready) await auth.init()
   if (auth.isAuthenticated) await favorites.load()
+  await catalog.fetch()
   ready.value = true
 })
 
@@ -43,9 +47,9 @@ watch(() => auth.user, async (user) => {
       </div>
     </section>
 
-    <section v-else-if="favoriteProducts().length" class="container fav-grid-wrap">
+    <section v-else-if="favoriteProducts.length" class="container fav-grid-wrap">
       <div class="fav-grid">
-        <ProductCard v-for="product in favoriteProducts()" :key="product.id" :product="product" />
+        <ProductCard v-for="product in favoriteProducts" :key="product.id" :product="product" />
       </div>
     </section>
 

@@ -40,7 +40,7 @@ function submit() {
           <div class="info-icon"><AppIcon name="mail" :size="22" /></div>
           <div>
             <p class="info-label">Correo</p>
-            <span class="info-value">{{ STORE.email }}</span>
+            <a :href="`mailto:${STORE.email}`" class="info-value">{{ STORE.email }}</a>
           </div>
         </div>
         <div class="info-item">
@@ -54,7 +54,13 @@ function submit() {
           <div class="info-icon"><AppIcon name="instagram" :size="22" /></div>
           <div>
             <p class="info-label">Instagram</p>
-            <span class="info-value">{{ STORE.instagram }}</span>
+            <a
+              :href="(STORE.instagram || '').startsWith('http') ? STORE.instagram : `https://instagram.com/${(STORE.instagram || '').replace('@', '')}`"
+              target="_blank"
+              class="info-value"
+            >
+              {{ STORE.instagram }}
+            </a>
           </div>
         </div>
       </div>

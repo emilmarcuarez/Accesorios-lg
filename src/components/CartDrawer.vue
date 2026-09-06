@@ -1,9 +1,19 @@
 <script setup>
+import { ref } from 'vue'
 import { useCartStore } from '@/store/cart'
 import AppIcon from '@/components/AppIcon.vue'
 import { formatPrice } from '@/utils/format'
 
 const cart = useCartStore()
+const couponCode = ref('')
+const couponError = ref('')
+
+async function applyCoupon() {
+  couponError.value = ''
+  const res = await cart.applyCoupon(couponCode.value)
+  if (res.error) couponError.value = res.error
+  else couponCode.value = ''
+}
 </script>
 
 <template>
@@ -25,7 +35,13 @@ const cart = useCartStore()
           <img :src="item.image" :alt="item.name" :style="{ objectPosition: item.pos }" />
           <div class="cart-info">
             <p class="cart-name">{{ item.name }}</p>
-            <p class="cart-price">{{ formatPrice(item.price) }}</p>
+            <div class="cart-prices">
+              <span class="cart-price">{{ formatPrice(item.price) }}</span>
+              <span v-if="item.originalPrice && item.originalPrice > item.price" class="cart-old-price">
+                {{ formatPrice(item.originalPrice) }}
+              </span>
+              <span v-if="item.discount" class="cart-item-discount">-{{ item.discount }}%</span>
+            </div>
             <div class="qty">
               <button class="qty-btn" aria-label="Menos" @click="cart.decrease(item.id)">
                 <AppIcon name="minus" :size="14" />
@@ -51,19 +67,54 @@ const cart = useCartStore()
       </div>
 
       <div v-if="cart.items.length" class="cart-foot">
-        <div class="cart-total">
-          <span>Total</span>
-          <strong>{{ cart.formattedSubtotal }}</strong>
+        <div class="coupon-row">
+          <input
+            v-model="couponCode"
+            type="text"
+            placeholder="Código de cupón"
+            class="coupon-input"
+            @keyup.enter="applyCoupon"
+          />
+          <button class="btn btn-ghost coupon-apply" @click="applyCoupon">Aplicar</button>
         </div>
+        <p v-if="couponError" class="coupon-error">{{ couponError }}</p>
+
+        <div class="totals">
+          <div v-if="cart.itemsDiscountTotal > 0" class="total-line">
+            <span>Subtotal regular</span>
+            <span>{{ cart.formattedRegularSubtotal }}</span>
+          </div>
+          <div v-if="cart.itemsDiscountTotal > 0" class="total-line discount">
+            <span>Descuentos en productos</span>
+            <span>-{{ formatPrice(cart.itemsDiscountTotal) }}</span>
+          </div>
+          <div v-else class="total-line">
+            <span>Subtotal</span>
+            <span>{{ cart.formattedSubtotal }}</span>
+          </div>
+          <div v-if="cart.coupon" class="total-line discount">
+            <span>Cupón {{ cart.coupon.code }} (-{{ cart.coupon.discount }}%)</span>
+            <button class="coupon-remove" @click="cart.removeCoupon">quitar</button>
+            <span>-{{ formatPrice(cart.discountAmount) }}</span>
+          </div>
+          <div v-if="cart.totalSavings > 0" class="savings-pill">
+            🎉 Ahorras {{ cart.formattedTotalSavings }} en esta compra
+          </div>
+          <div class="cart-total">
+            <span>Total</span>
+            <strong>{{ cart.formattedTotal }}</strong>
+          </div>
+        </div>
+
         <button class="btn btn-primary cart-checkout" @click="cart.checkout">
           <AppIcon name="whatsapp" :size="18" />
           Finalizar compra por WhatsApp
         </button>
-        <button class="btn btn-outline cart-receipt" @click="cart.printInvoice">
+        <button class="btn btn-outline cart-receipt" @click="cart.printInvoice()">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2v20L9 20.5 12 22l3-1.5L18 20.5 18 2"></path></svg>
-          Descargar orden
+          Descargar Factura / Comprobante
         </button>
-        <p class="cart-hint">En el mensaje de WhatsApp va el detalle completo de tu orden. También puedes descargarla aquí como PDF.</p>
+        <p class="cart-hint">Al descargar la factura obtendrás tu comprobante con el detalle de descuentos y precios finales.</p>
       </div>
     </aside>
   </transition>
@@ -137,10 +188,33 @@ const cart = useCartStore()
   line-height: 1.3;
 }
 
+.cart-prices {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  margin: 4px 0 10px;
+}
+
 .cart-price {
   font-size: 14px;
+  font-weight: 600;
   color: var(--rose-600);
-  margin: 4px 0 10px;
+}
+
+.cart-old-price {
+  font-size: 11.5px;
+  color: var(--ink-400);
+  text-decoration: line-through;
+}
+
+.cart-item-discount {
+  font-size: 10.5px;
+  font-weight: 700;
+  background: #fff0f3;
+  color: #c92a54;
+  padding: 1px 5px;
+  border-radius: 4px;
+  border: 1px solid #fed7e2;
 }
 
 .qty {
@@ -208,11 +282,80 @@ const cart = useCartStore()
   padding: 20px 24px 24px;
 }
 
+.coupon-row {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.coupon-input {
+  flex: 1;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 10px 14px;
+  font-size: 13px;
+  background: var(--rose-50);
+  outline: none;
+  text-transform: uppercase;
+}
+
+.coupon-input:focus {
+  border-color: var(--rose-300);
+  background: var(--white);
+}
+
+.coupon-apply {
+  padding: 10px 16px;
+  font-size: 13px;
+}
+
+.coupon-error {
+  color: #c0392b;
+  font-size: 12px;
+  margin-bottom: 8px;
+}
+
+.totals {
+  margin-bottom: 14px;
+}
+
+.total-line {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--ink-500);
+  margin-bottom: 6px;
+}
+
+.total-line.discount {
+  color: #1f8a4c;
+}
+
+.coupon-remove {
+  font-size: 11px;
+  text-decoration: underline;
+  color: var(--ink-400);
+}
+
+.savings-pill {
+  background: linear-gradient(135deg, #fff0f3 0%, #ffe3ea 100%);
+  border: 1px solid #fccfd8;
+  color: #b3264b;
+  font-size: 12px;
+  font-weight: 700;
+  padding: 6px 10px;
+  border-radius: 8px;
+  margin: 6px 0 10px;
+  text-align: center;
+}
+
 .cart-total {
   display: flex;
   align-items: baseline;
   justify-content: space-between;
-  margin-bottom: 16px;
+  margin-top: 8px;
   font-size: 15px;
   color: var(--ink-700);
 }

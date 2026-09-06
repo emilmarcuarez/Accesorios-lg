@@ -1,39 +1,30 @@
 <script setup>
+import { computed } from 'vue'
 import { STORE } from '@/config'
 import AppIcon from '@/components/AppIcon.vue'
 
-const shopLinks = [
-  { label: 'Collares', to: '/tienda/collares' },
-  { label: 'Pulseras', to: '/tienda/pulseras' },
-  { label: 'Aretes', to: '/tienda/aretes' },
-  { label: 'Anillos', to: '/tienda/anillos' },
-  { label: 'Accesorios para el cabello', to: '/tienda/cabello' },
-  { label: 'Regalos Personalizados', to: '/tienda/personalizados' },
+const helpLinks = [
+  { label: 'Preguntas frecuentes', to: '/faq' },
+  { label: 'Contacto', to: '/contactos' },
 ]
 
-const infoLinks = [
-  { label: 'Envíos', to: '/nosotros' },
-  { label: 'Medios de pago', to: '/nosotros' },
-  { label: 'Preguntas frecuentes', to: '/nosotros' },
-  { label: 'Devoluciones', to: '/nosotros' },
+const legalLinks = [
   { label: 'Términos y condiciones', to: '/terminos' },
   { label: 'Política de privacidad', to: '/privacidad' },
 ]
 
-const helpLinks = [
-  { label: 'Preguntas frecuentes', to: '/nosotros' },
-  { label: 'Guía de tallas', to: '/nosotros' },
-  { label: 'Cuidado de joyas', to: '/nosotros' },
-  { label: 'Contacto', to: '/contactos' },
-]
+const socials = computed(() => [
+  {
+    icon: 'instagram',
+    url: (STORE.instagram || '').startsWith('http')
+      ? STORE.instagram
+      : `https://instagram.com/${(STORE.instagram || '').replace('@', '')}`,
+  },
+  { icon: 'facebook', url: STORE.facebook || 'https://facebook.com' },
+  { icon: 'tiktok', url: STORE.tiktok || 'https://tiktok.com' },
+])
 
-const socials = [
-  { icon: 'instagram', url: `https://instagram.com/${STORE.instagram.replace('@', '')}` },
-  { icon: 'facebook', url: 'https://facebook.com' },
-  { icon: 'tiktok', url: 'https://tiktok.com' },
-]
-
-const payments = ['Pago Movil', 'Transferencias','Zelle', 'USDT', 'Dolares', 'Euros']
+const payments = ['Pago Movil', 'Transferencias', 'Zelle', 'USDT', 'Dolares', 'Euros']
 </script>
 
 <template>
@@ -59,20 +50,6 @@ const payments = ['Pago Movil', 'Transferencias','Zelle', 'USDT', 'Dolares', 'Eu
       </div>
 
       <div class="footer-col">
-        <p class="footer-title">Tienda</p>
-        <router-link v-for="link in shopLinks" :key="link.label" :to="link.to" class="footer-link">
-          {{ link.label }}
-        </router-link>
-      </div>
-
-      <div class="footer-col">
-        <p class="footer-title">Información</p>
-        <router-link v-for="link in infoLinks" :key="link.label" :to="link.to" class="footer-link">
-          {{ link.label }}
-        </router-link>
-      </div>
-
-      <div class="footer-col">
         <p class="footer-title">Ayudo</p>
         <router-link v-for="link in helpLinks" :key="link.label" :to="link.to" class="footer-link">
           {{ link.label }}
@@ -83,11 +60,11 @@ const payments = ['Pago Movil', 'Transferencias','Zelle', 'USDT', 'Dolares', 'Eu
         <p class="footer-title">Contacto</p>
         <div class="contact-item">
           <AppIcon name="mail" :size="16" />
-          <span>{{ STORE.email }}</span>
+          <a :href="`mailto:${STORE.email}`" class="contact-value">{{ STORE.email }}</a>
         </div>
         <div class="contact-item">
           <AppIcon name="whatsapp" :size="16" />
-          <span>+{{ STORE.whatsapp }}</span>
+          <a :href="`https://wa.me/${STORE.whatsapp}`" class="contact-value" target="_blank">+{{ STORE.whatsapp }}</a>
         </div>
         <div class="contact-item">
           <AppIcon name="mapPin" :size="16" />
@@ -97,7 +74,14 @@ const payments = ['Pago Movil', 'Transferencias','Zelle', 'USDT', 'Dolares', 'Eu
     </div>
 
     <div class="container footer-bottom">
-      <p class="copyright">© 2026 {{ STORE.name }}. Todos los derechos reservados.</p>
+      <div class="footer-legal">
+        <p class="copyright">© 2026 {{ STORE.name }}. Todos los derechos reservados.</p>
+        <div class="legal-links">
+          <router-link v-for="link in legalLinks" :key="link.label" :to="link.to" class="legal-link">
+            {{ link.label }}
+          </router-link>
+        </div>
+      </div>
       <div class="payments">
         <span v-for="pay in payments" :key="pay" class="payment">{{ pay }}</span>
       </div>
@@ -114,7 +98,7 @@ const payments = ['Pago Movil', 'Transferencias','Zelle', 'USDT', 'Dolares', 'Eu
 
 .footer-grid {
   display: grid;
-  grid-template-columns: 1.6fr 1fr 1fr 1fr 1.2fr;
+  grid-template-columns: 1.6fr 1fr 1.2fr;
   gap: 36px;
   padding-bottom: 40px;
 }
@@ -192,16 +176,25 @@ const payments = ['Pago Movil', 'Transferencias','Zelle', 'USDT', 'Dolares', 'Eu
 
 .contact-item {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 10px;
   font-size: 13px;
   color: var(--ink-500);
   margin-bottom: 14px;
+  min-width: 0;
 }
 
 .contact-item svg {
   color: var(--rose-500);
   flex: 0 0 auto;
+  margin-top: 3px;
+}
+
+.contact-value,
+.contact-item span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .footer-bottom {
@@ -214,9 +207,31 @@ const payments = ['Pago Movil', 'Transferencias','Zelle', 'USDT', 'Dolares', 'Eu
   flex-wrap: wrap;
 }
 
+.footer-legal {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
 .copyright {
   font-size: 12px;
   color: var(--ink-400);
+}
+
+.legal-links {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.legal-link {
+  font-size: 12px;
+  color: var(--ink-400);
+}
+
+.legal-link:hover {
+  color: var(--rose-600);
+  text-decoration: underline;
 }
 
 .payments {
@@ -238,7 +253,7 @@ const payments = ['Pago Movil', 'Transferencias','Zelle', 'USDT', 'Dolares', 'Eu
 
 @media (max-width: 1024px) {
   .footer-grid {
-    grid-template-columns: repeat(3, 1fr);
+    grid-template-columns: repeat(2, 1fr);
   }
   .footer-brand {
     grid-column: 1 / -1;
@@ -247,7 +262,10 @@ const payments = ['Pago Movil', 'Transferencias','Zelle', 'USDT', 'Dolares', 'Eu
 
 @media (max-width: 600px) {
   .footer-grid {
-    grid-template-columns: repeat(2, 1fr);
+    grid-template-columns: 1fr;
+  }
+  .footer-brand {
+    grid-column: auto;
   }
   .footer-bottom {
     flex-direction: column;

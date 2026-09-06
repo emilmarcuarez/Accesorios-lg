@@ -30,6 +30,11 @@ const routes = [
     component: () => import('@/views/ContactView.vue'),
   },
   {
+    path: '/faq',
+    name: 'faq',
+    component: () => import('@/views/FaqView.vue'),
+  },
+  {
     path: '/privacidad',
     name: 'privacy',
     component: () => import('@/views/PrivacyPolicyView.vue'),
@@ -98,6 +103,18 @@ const routes = [
         meta: { title: 'Productos' },
       },
       {
+        path: 'productos/nuevo',
+        name: 'admin-product-new',
+        component: () => import('@/views/admin/AdminProductForm.vue'),
+        meta: { title: 'Nuevo producto' },
+      },
+      {
+        path: 'productos/:id/editar',
+        name: 'admin-product-edit',
+        component: () => import('@/views/admin/AdminProductForm.vue'),
+        meta: { title: 'Editar producto' },
+      },
+      {
         path: 'categorias',
         name: 'admin-categories',
         component: () => import('@/views/admin/AdminCategories.vue'),
@@ -120,6 +137,30 @@ const routes = [
         name: 'admin-orders',
         component: () => import('@/views/admin/AdminOrders.vue'),
         meta: { title: 'Pedidos / Ventas' },
+      },
+      {
+        path: 'banners',
+        name: 'admin-banners',
+        component: () => import('@/views/admin/AdminBanners.vue'),
+        meta: { title: 'Banners de Inicio' },
+      },
+      {
+        path: 'galeria',
+        name: 'admin-gallery',
+        component: () => import('@/views/admin/AdminGallery.vue'),
+        meta: { title: 'Galería' },
+      },
+      {
+        path: 'usuarios',
+        name: 'admin-users',
+        component: () => import('@/views/admin/AdminUsers.vue'),
+        meta: { title: 'Gestión de Usuarios' },
+      },
+      {
+        path: 'ajustes',
+        name: 'admin-settings',
+        component: () => import('@/views/admin/AdminSettings.vue'),
+        meta: { title: 'Ajustes' },
       },
     ],
   },

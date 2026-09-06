@@ -1,8 +1,13 @@
 <script setup>
-import { PRODUCTS } from '@/data/products'
+import { computed, onMounted } from 'vue'
+import { useCatalogStore } from '@/store/catalog'
 import ProductCard from '@/components/ProductCard.vue'
 
-const featured = PRODUCTS.filter((p) => p.featured)
+const catalog = useCatalogStore()
+
+const featured = computed(() => catalog.featured)
+
+onMounted(() => catalog.fetch())
 </script>
 
 <template>
@@ -17,9 +22,10 @@ const featured = PRODUCTS.filter((p) => p.featured)
         </router-link>
       </div>
 
-      <div class="product-grid">
+      <div v-if="featured.length" class="product-grid">
         <ProductCard v-for="product in featured" :key="product.id" :product="product" />
       </div>
+      <p v-else class="empty">Aún no hay productos destacados.</p>
     </div>
   </section>
 </template>
@@ -49,8 +55,14 @@ const featured = PRODUCTS.filter((p) => p.featured)
 
 .product-grid {
   display: grid;
-  grid-template-columns: repeat(5, 1fr);
+  grid-template-columns: repeat(4, 1fr);
   gap: 24px;
+}
+
+.empty {
+  text-align: center;
+  color: var(--ink-400);
+  padding: 30px;
 }
 
 @media (max-width: 1100px) {
