@@ -1045,6 +1045,9 @@ function restoreDefaults() {
 
 .banners-admin {
   font-family: var(--font-body);
+  display: flex;
+  flex-direction: column;
+  gap: 32px;
 }
 
 .admin-title {
@@ -1090,7 +1093,7 @@ function restoreDefaults() {
   border: 1px solid #a7f3d0;
   padding: 12px 18px;
   border-radius: 10px;
-  margin-bottom: 20px;
+  margin-bottom: 4px;
   font-weight: 600;
   font-size: 14px;
 }
@@ -1098,7 +1101,7 @@ function restoreDefaults() {
 .banners-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 24px;
+  gap: 28px;
 }
 
 @media (max-width: 1100px) {
@@ -1134,7 +1137,7 @@ function restoreDefaults() {
 }
 
 .hero-admin-box {
-  margin-bottom: 28px;
+  margin-bottom: 0;
 }
 
 .badge-hero {
