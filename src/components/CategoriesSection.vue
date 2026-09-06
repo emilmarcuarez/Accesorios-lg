@@ -9,21 +9,29 @@ const trackRef = ref(null)
 const canScrollLeft = ref(false)
 const canScrollRight = ref(false)
 
-// Filtrar solo las categorías que tienen al menos un producto con stock disponible
+// Mostrar todas las categorías, organizando las que tienen stock primero
 const categories = computed(() => {
-  return catalog.categoryCards
+  return [...catalog.categoryCards]
     .map((cat) => {
       const prodsWithStock = (catalog.products || []).filter(
         (p) =>
           (p.categoryId === cat.id || p.category === cat.slug) &&
           (Number(p.stock) || 0) > 0,
       )
+      const totalStock = prodsWithStock.reduce((acc, p) => acc + (Number(p.stock) || 0), 0)
       return {
         ...cat,
         productCount: prodsWithStock.length,
+        totalStock,
+        hasStock: prodsWithStock.length > 0,
       }
     })
-    .filter((cat) => cat.productCount > 0)
+    .sort((a, b) => {
+      if (a.hasStock && !b.hasStock) return -1
+      if (!a.hasStock && b.hasStock) return 1
+      if (a.hasStock && b.hasStock) return b.totalStock - a.totalStock
+      return 0
+    })
 })
 
 function updateScrollState() {
@@ -101,9 +109,6 @@ onUnmounted(() => {
               <div v-else class="cat-placeholder">
                 <AppIcon name="bag" :size="28" />
               </div>
-              <span class="cat-badge">
-                <AppIcon name="heart" :size="14" />
-              </span>
             </div>
             <p class="cat-name">{{ cat.name }}</p>
           </router-link>
@@ -201,28 +206,6 @@ onUnmounted(() => {
   justify-content: center;
   color: var(--rose-300);
   background: var(--rose-100);
-}
-
-.cat-badge {
-  position: absolute;
-  bottom: 12px;
-  left: 50%;
-  transform: translateX(-50%);
-  width: 32px;
-  height: 32px;
-  border-radius: 50%;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  background: var(--white);
-  color: var(--rose-500);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-  transition: transform 0.2s ease;
-}
-
-.cat-item:hover .cat-badge {
-  transform: translateX(-50%) scale(1.1);
-  color: var(--rose-600);
 }
 
 .cat-name {

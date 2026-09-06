@@ -16,14 +16,6 @@ const ui = useUiStore()
             <img src="/img/logo.png" :alt="STORE.name" class="loading-logo-img" />
           </div>
         </div>
-
-        <!-- Indicador y texto de carga -->
-        <div class="loading-status">
-          <p class="loading-text">Cargando...</p>
-          <div class="loading-bar">
-            <div class="loading-bar-fill"></div>
-          </div>
-        </div>
       </div>
     </div>
   </transition>
@@ -90,42 +82,6 @@ const ui = useUiStore()
   animation: pulseLogo 2s ease-in-out infinite alternate;
 }
 
-.loading-status {
-  margin-top: 26px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 10px;
-}
-
-.loading-text {
-  font-family: 'Montserrat', sans-serif;
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.18em;
-  text-transform: uppercase;
-  color: #111111;
-  margin: 0;
-}
-
-.loading-bar {
-  width: 80px;
-  height: 2.5px;
-  background: rgba(217, 109, 139, 0.2);
-  border-radius: 2px;
-  overflow: hidden;
-  position: relative;
-}
-
-.loading-bar-fill {
-  position: absolute;
-  top: 0;
-  bottom: 0;
-  background: #111111;
-  border-radius: 2px;
-  animation: slideBar 1.4s ease-in-out infinite;
-}
-
 @keyframes spin {
   from {
     transform: rotate(0deg);
@@ -143,21 +99,6 @@ const ui = useUiStore()
   100% {
     transform: scale(1.04);
     opacity: 1;
-  }
-}
-
-@keyframes slideBar {
-  0% {
-    left: 0;
-    width: 25%;
-  }
-  50% {
-    left: 35%;
-    width: 50%;
-  }
-  100% {
-    left: 100%;
-    width: 20%;
   }
 }
 

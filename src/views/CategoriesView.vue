@@ -5,7 +5,29 @@ import AppIcon from '@/components/AppIcon.vue'
 import { resolveImage } from '@/utils/image'
 
 const catalog = useCatalogStore()
-const categories = computed(() => catalog.categoryCards)
+const categories = computed(() => {
+  return [...catalog.categoryCards]
+    .map((cat) => {
+      const prodsWithStock = (catalog.products || []).filter(
+        (p) =>
+          (p.categoryId === cat.id || p.category === cat.slug) &&
+          (Number(p.stock) || 0) > 0,
+      )
+      const totalStock = prodsWithStock.reduce((acc, p) => acc + (Number(p.stock) || 0), 0)
+      return {
+        ...cat,
+        productCount: prodsWithStock.length,
+        totalStock,
+        hasStock: prodsWithStock.length > 0,
+      }
+    })
+    .sort((a, b) => {
+      if (a.hasStock && !b.hasStock) return -1
+      if (!a.hasStock && b.hasStock) return 1
+      if (a.hasStock && b.hasStock) return b.totalStock - a.totalStock
+      return 0
+    })
+})
 
 onMounted(() => catalog.fetch())
 </script>

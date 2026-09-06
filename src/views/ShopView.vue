@@ -148,7 +148,7 @@ const circleItems = computed(() => {
   if (offersCount > 0) {
     items.push({
       id: 'offers',
-      name: 'Sale hasta 30%',
+      name: 'Ofertas',
       type: 'quick',
       quickVal: 'offers',
       count: offersCount,
@@ -169,20 +169,36 @@ const circleItems = computed(() => {
     })
   }
 
-  for (const cat of catalog.categories || []) {
-    const count = allProds.filter(
-      (p) => p.categoryId === cat.id || p.category === cat.slug,
-    ).length
-    items.push({
-      id: cat.id,
-      name: cat.name,
-      type: 'category',
-      slug: cat.slug,
-      count,
-      image: cat.image,
-      active: selectedCategory.value === cat.slug || selectedCategory.value === cat.id,
+  const catItems = (catalog.categories || [])
+    .map((cat) => {
+      const prodsWithStock = allProds.filter(
+        (p) =>
+          (p.categoryId === cat.id || p.category === cat.slug) &&
+          (Number(p.stock) || 0) > 0,
+      )
+      const count = allProds.filter(
+        (p) => p.categoryId === cat.id || p.category === cat.slug,
+      ).length
+      return {
+        id: cat.id,
+        name: cat.name,
+        type: 'category',
+        slug: cat.slug,
+        count,
+        hasStock: prodsWithStock.length > 0,
+        totalStock: prodsWithStock.reduce((acc, p) => acc + (Number(p.stock) || 0), 0),
+        image: cat.image,
+        active: selectedCategory.value === cat.slug || selectedCategory.value === cat.id,
+      }
     })
-  }
+    .sort((a, b) => {
+      if (a.hasStock && !b.hasStock) return -1
+      if (!a.hasStock && b.hasStock) return 1
+      if (a.hasStock && b.hasStock) return b.totalStock - a.totalStock
+      return 0
+    })
+
+  items.push(...catItems)
 
   return items
 })
