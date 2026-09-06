@@ -106,9 +106,9 @@ onMounted(() => catalog.fetch())
 }
 
 .circle-btn {
-  width: 42px;
-  height: 42px;
-  border-radius: 50%;
+  width: 38px;
+  height: 38px;
+  border-radius: 2px;
   border: 1px solid var(--rose-300);
   display: inline-flex;
   align-items: center;
@@ -117,7 +117,7 @@ onMounted(() => catalog.fetch())
   background: var(--white);
   transition: all 0.2s ease;
   cursor: pointer;
-  box-shadow: 0 2px 8px rgba(180, 90, 112, 0.08);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.04);
 }
 
 .circle-btn:hover {
@@ -146,16 +146,16 @@ onMounted(() => catalog.fetch())
   max-width: 285px;
   min-width: 230px;
   background: var(--white);
-  border-radius: var(--radius-md);
+  border-radius: 2px;
   overflow: hidden;
-  border: 1px solid var(--line);
+  border: 1px solid #e8e8e8;
   transition: transform 0.25s ease, box-shadow 0.25s ease, border-color 0.25s ease;
 }
 
 .arrival-card:hover {
   transform: translateY(-4px);
-  border-color: var(--rose-400);
-  box-shadow: var(--shadow-md);
+  border-color: #111111;
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.08);
 }
 
 @media (max-width: 1024px) {
@@ -204,25 +204,29 @@ onMounted(() => catalog.fetch())
   padding: 4px 9px;
   font-size: 11px;
   font-weight: 600;
-  border-radius: 8px;
+  border-radius: 2px;
   color: var(--white);
 }
 
 .tag-discount {
-  background: var(--rose-gradient);
+  background: #111111;
   color: var(--white);
+  padding: 3px 7px;
+  font-size: 9.5px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  border-radius: 2px;
   font-weight: 700;
-  box-shadow: 0 2px 6px rgba(217, 109, 139, 0.3);
 }
 
 .arrival-name {
   display: block;
   padding: 12px 14px 6px;
-  font-family: var(--font-display);
-  font-size: 16px;
+  font-family: var(--font-body);
+  font-size: 14px;
   font-weight: 600;
-  color: var(--ink-900);
-  line-height: 1.25;
+  color: #111111;
+  line-height: 1.3;
   display: -webkit-box;
   -webkit-line-clamp: 1;
   -webkit-box-orient: vertical;
@@ -230,7 +234,7 @@ onMounted(() => catalog.fetch())
 }
 
 .arrival-name:hover {
-  color: var(--rose-600);
+  color: #666666;
 }
 
 .arrival-foot {
@@ -255,12 +259,12 @@ onMounted(() => catalog.fetch())
 .arrival-price {
   font-size: 15px;
   font-weight: 600;
-  color: var(--ink-900);
+  color: #111111;
 }
 
 .arrival-old-price {
   font-size: 12px;
-  color: var(--ink-400);
+  color: #999999;
   text-decoration: line-through;
 }
 
@@ -271,22 +275,26 @@ onMounted(() => catalog.fetch())
 }
 
 .mini-add {
-  width: 34px;
-  height: 34px;
-  border-radius: 50%;
-  background: var(--rose-gradient);
-  color: var(--white);
+  width: 32px;
+  height: 32px;
+  border-radius: 2px;
+  background: #ffffff;
+  color: var(--rose-500);
+  border: 1.5px solid var(--rose-500);
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  transition: all 0.2s ease;
   cursor: pointer;
-  box-shadow: 0 2px 8px rgba(217, 109, 139, 0.2);
+  box-shadow: 0 2px 8px rgba(217, 109, 139, 0.12);
 }
 
 .mini-add:hover {
-  transform: scale(1.1);
-  box-shadow: 0 4px 12px rgba(217, 109, 139, 0.35);
+  background: var(--rose-50);
+  border-color: var(--rose-600);
+  color: var(--rose-600);
+  box-shadow: 0 4px 14px rgba(217, 109, 139, 0.25);
+  transform: scale(1.08);
 }
 
 .empty {
