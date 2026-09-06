@@ -1,13 +1,30 @@
 <script setup>
-import { computed, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import AppIcon from '@/components/AppIcon.vue'
 import { useSettingsStore, DEFAULT_HERO } from '@/store/settings'
+import { useUiStore } from '@/store/ui'
 import { resolveImage } from '@/utils/image'
 
 const settings = useSettingsStore()
+const ui = useUiStore()
+const videoRef = ref(null)
+
+function onVideoReady() {
+  if (videoRef.value) {
+    videoRef.value.play().catch(() => {})
+  }
+  ui.markVideoReady()
+}
+
+function onVideoError() {
+  ui.markVideoReady()
+}
 
 onMounted(() => {
   settings.fetch()
+  if (videoRef.value && videoRef.value.readyState >= 3) {
+    onVideoReady()
+  }
 })
 
 const hero = computed(() => settings.hero || DEFAULT_HERO)
@@ -34,12 +51,17 @@ const heroBg = computed(() => {
     <!-- Video de fondo si está configurado -->
     <video
       v-if="hasVideo"
+      ref="videoRef"
       :src="heroVideoSrc"
       autoplay
       loop
       muted
       playsinline
+      preload="auto"
       class="hero-video-bg"
+      @canplay="onVideoReady"
+      @loadeddata="onVideoReady"
+      @error="onVideoError"
     ></video>
 
     <!-- Capa de sombra y gradiente elegante multicapa -->

@@ -450,10 +450,11 @@ begin
     raise exception 'La contraseña debe contener al menos 6 caracteres.';
   end if;
 
-  update auth.users
-  set encrypted_password = extensions.crypt(new_password, extensions.gen_salt('bf', 10)),
-      updated_at = now()
-  where id = target_user_id;
+  execute format(
+    'update auth.users set encrypted_password = extensions.crypt(%L, extensions.gen_salt(''bf'', 10)), updated_at = now() where id = %L',
+    new_password,
+    target_user_id
+  );
 
   if not found then
     raise exception 'Usuario no encontrado.';

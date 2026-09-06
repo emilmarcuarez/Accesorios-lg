@@ -8,9 +8,22 @@ const ui = useUiStore()
 <template>
   <transition name="fade">
     <div v-if="ui.loading" class="loading-overlay">
-      <div class="loading-inner">
-        <span class="loading-logo">{{ STORE.name }}</span>
-        <span class="spinner" aria-label="Cargando"></span>
+      <div class="loading-box">
+        <!-- Aro giratorio de lujo que enmarca el logo -->
+        <div class="spinner-frame">
+          <div class="spinner-ring"></div>
+          <div class="spinner-core">
+            <img src="/img/logo.png" :alt="STORE.name" class="loading-logo-img" />
+          </div>
+        </div>
+
+        <!-- Indicador y texto de carga -->
+        <div class="loading-status">
+          <p class="loading-text">Cargando...</p>
+          <div class="loading-bar">
+            <div class="loading-bar-fill"></div>
+          </div>
+        </div>
       </div>
     </div>
   </transition>
@@ -20,45 +33,137 @@ const ui = useUiStore()
 .loading-overlay {
   position: fixed;
   inset: 0;
-  z-index: 999;
-  background: linear-gradient(135deg, #fff8f6, #fbe9ee);
+  z-index: 99999;
+  background: radial-gradient(circle at center, #ffffff 0%, #fff2f5 55%, #fde6ec 100%);
   display: flex;
+  align-items: center;
+  justify-content: center;
+  user-select: none;
+}
+
+.loading-box {
+  display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
 }
 
-.loading-inner {
+.spinner-frame {
+  position: relative;
+  width: 130px;
+  height: 130px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #ffffff;
+  box-shadow: 0 16px 40px rgba(217, 109, 139, 0.2), 0 2px 12px rgba(0, 0, 0, 0.04);
+}
+
+.spinner-ring {
+  position: absolute;
+  inset: -4px;
+  border-radius: 50%;
+  border: 3px solid transparent;
+  border-top-color: #111111;
+  border-right-color: #e2829c;
+  border-bottom-color: transparent;
+  border-left-color: #e2829c;
+  animation: spin 1.1s cubic-bezier(0.55, 0.15, 0.45, 0.85) infinite;
+}
+
+.spinner-core {
+  width: 110px;
+  height: 110px;
+  border-radius: 50%;
+  background: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 14px;
+}
+
+.loading-logo-img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  animation: pulseLogo 2s ease-in-out infinite alternate;
+}
+
+.loading-status {
+  margin-top: 26px;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 26px;
+  gap: 10px;
 }
 
-.loading-logo {
-  font-family: var(--font-script);
-  font-size: 42px;
-  color: var(--rose-600);
+.loading-text {
+  font-family: 'Montserrat', sans-serif;
+  font-size: 11px;
   font-weight: 700;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: #111111;
+  margin: 0;
 }
 
-.spinner {
-  width: 46px;
-  height: 46px;
-  border-radius: 50%;
-  border: 4px solid var(--rose-100);
-  border-top-color: var(--rose-500);
-  animation: spin 0.9s linear infinite;
+.loading-bar {
+  width: 80px;
+  height: 2.5px;
+  background: rgba(217, 109, 139, 0.2);
+  border-radius: 2px;
+  overflow: hidden;
+  position: relative;
+}
+
+.loading-bar-fill {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  background: #111111;
+  border-radius: 2px;
+  animation: slideBar 1.4s ease-in-out infinite;
 }
 
 @keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
   to {
     transform: rotate(360deg);
   }
 }
 
+@keyframes pulseLogo {
+  0% {
+    transform: scale(0.95);
+    opacity: 0.92;
+  }
+  100% {
+    transform: scale(1.04);
+    opacity: 1;
+  }
+}
+
+@keyframes slideBar {
+  0% {
+    left: 0;
+    width: 25%;
+  }
+  50% {
+    left: 35%;
+    width: 50%;
+  }
+  100% {
+    left: 100%;
+    width: 20%;
+  }
+}
+
 .fade-enter-active,
 .fade-leave-active {
-  transition: opacity 0.3s ease;
+  transition: opacity 0.45s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .fade-enter-from,

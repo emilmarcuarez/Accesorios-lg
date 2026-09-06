@@ -1,0 +1,11 @@
+# GitGuardian configuration file
+# https://docs.gitguardian.com/ggshield-docs/reference/configuration
+
+version: 2
+secret:
+  ignored_paths:
+    - 'supabase/schema.sql'
+    - '.env.example'
+  ignored_matches:
+    - name: False positive in password hashing SQL function
+      match: encrypted_password
