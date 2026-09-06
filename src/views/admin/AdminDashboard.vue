@@ -110,12 +110,14 @@ const filteredOrders = computed(() => {
   })
 })
 
-// Métricas de ventas para el período seleccionado
-const revenue = computed(() => filteredOrders.value.reduce((s, o) => s + (o.subtotal || 0), 0))
-const totalAllRevenue = computed(() => orders.value.reduce((s, o) => s + (o.subtotal || 0), 0))
+const validFilteredOrders = computed(() => filteredOrders.value.filter((o) => o.status !== 'cancelado'))
+
+
+const revenue = computed(() => validFilteredOrders.value.reduce((s, o) => s + (o.subtotal || 0), 0))
+const totalAllRevenue = computed(() => orders.value.filter((o) => o.status !== 'cancelado').reduce((s, o) => s + (o.subtotal || 0), 0))
 const lowStock = computed(() => products.value.filter((p) => (p.stock ?? 0) <= settings.lowStock))
 const unitsSold = computed(() =>
-  filteredOrders.value.reduce((s, o) => s + (o.order_items || []).reduce((a, i) => a + i.qty, 0), 0),
+  validFilteredOrders.value.reduce((s, o) => s + (o.order_items || []).reduce((a, i) => a + i.qty, 0), 0),
 )
 
 const stats = computed(() => [
@@ -127,9 +129,9 @@ const stats = computed(() => [
   },
   {
     label: 'Pedidos',
-    value: filteredOrders.value.length,
+    value: validFilteredOrders.value.length,
     tone: 'blue',
-    sub: datePreset.value === 'all' ? 'Historial' : 'En el período',
+    sub: datePreset.value === 'all' ? 'Historial efectivos' : 'En el período',
   },
   {
     label: 'Unidades vendidas',
@@ -161,7 +163,7 @@ const salesSeries = computed(() => {
       const dayNum = d.getDate()
       const monthShort = d.toLocaleString('es-ES', { month: 'short' })
 
-      const dayOrders = orders.value.filter((o) => (o.created_at || '').slice(0, 10) === key)
+      const dayOrders = orders.value.filter((o) => (o.created_at || '').slice(0, 10) === key && o.status !== 'cancelado')
       const total = dayOrders.reduce((s, o) => s + (o.subtotal || 0), 0)
 
       arr.push({
@@ -191,6 +193,7 @@ const salesSeries = computed(() => {
     // Agrupar por mes o mostrar últimos 30 días
     const monthsMap = {}
     orders.value.forEach((o) => {
+      if (o.status === 'cancelado') return
       const ym = (o.created_at || '').slice(0, 7) // YYYY-MM
       if (!ym) return
       monthsMap[ym] = (monthsMap[ym] || 0) + (o.subtotal || 0)
@@ -207,7 +210,7 @@ const salesSeries = computed(() => {
           label: label.charAt(0).toUpperCase() + label.slice(1),
           fullDate: `${label} ${y}`,
           value: Number(monthsMap[ym].toFixed(2)),
-          ordersCount: orders.value.filter((o) => (o.created_at || '').slice(0, 7) === ym).length,
+          ordersCount: orders.value.filter((o) => (o.created_at || '').slice(0, 7) === ym && o.status !== 'cancelado').length,
         })
       })
       return arr
@@ -219,7 +222,7 @@ const salesSeries = computed(() => {
       const d = new Date(now)
       d.setDate(now.getDate() - i)
       const key = d.toISOString().slice(0, 10)
-      const dayOrders = orders.value.filter((o) => (o.created_at || '').slice(0, 10) === key)
+      const dayOrders = orders.value.filter((o) => (o.created_at || '').slice(0, 10) === key && o.status !== 'cancelado')
       const total = dayOrders.reduce((s, o) => s + (o.subtotal || 0), 0)
       arr.push({ key, label: d.getDate(), fullDate: d.toLocaleDateString(), value: total, ordersCount: dayOrders.length })
     }
@@ -295,7 +298,7 @@ const categorySales = computed(() => {
   products.value.forEach((p) => (catOf[p.id] = p.categories?.name || 'Sin categoría'))
   const acc = {}
 
-  filteredOrders.value.forEach((o) => {
+  validFilteredOrders.value.forEach((o) => {
     ;(o.order_items || []).forEach((item) => {
       const name = catOf[item.product_id] || 'Sin categoría'
       acc[name] = (acc[name] || 0) + item.price * item.qty
@@ -393,7 +396,7 @@ onMounted(async () => {
         <div class="panel-head">
           <div>
             <h2 class="panel-title">Ventas · {{ dateWindow.label }}</h2>
-            <span class="panel-sub-count">{{ filteredOrders.length }} pedido(s) registrados</span>
+            <span class="panel-sub-count">{{ validFilteredOrders.length }} pedido(s) efectivos</span>
           </div>
           <div class="panel-meta-block">
             <span class="panel-meta">{{ formatPrice(revenue) }}</span>

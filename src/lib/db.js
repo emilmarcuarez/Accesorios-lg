@@ -263,7 +263,7 @@ export async function uploadImage(file) {
     try {
       const j = JSON.parse(text)
       url = j.url || j.link || j.direct || j.data?.url || text
-    } catch {}
+    } catch { }
     return { url }
   } catch {
     return { error: 'No se pudo conectar con x02.me' }
@@ -419,6 +419,29 @@ export async function insertOrder(order, items) {
   }
 
   return { data }
+}
+
+export async function deleteOrder(id) {
+  if (!supabase) return { error: 'Supabase no configurado' }
+  try {
+    const { data: order } = await supabase.from('orders').select('id, status').eq('id', id).maybeSingle()
+    if (order && ['pagado', 'enviado', 'entregado'].includes(order.status)) {
+      await restoreOrderStock(id)
+    }
+    await supabase.from('order_items').delete().eq('order_id', id)
+    const res = await supabase.from('orders').delete().eq('id', id)
+    try {
+      const currentCoupons = await getOrderCoupons()
+      if (currentCoupons && currentCoupons[String(id)]) {
+        delete currentCoupons[String(id)]
+        await setSetting('order_coupons', JSON.stringify(currentCoupons))
+      }
+    } catch { }
+    return res
+  } catch (err) {
+    console.error('Error al eliminar orden:', err)
+    return { error: err.message || err }
+  }
 }
 
 export async function getPromotions() {

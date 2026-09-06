@@ -2,7 +2,7 @@
 import { ref, computed, onMounted } from 'vue'
 import * as XLSX from 'xlsx'
 import AppIcon from '@/components/AppIcon.vue'
-import { listOrders, updateOrderStatus, insertOrder, recordOrderCoupon, listCoupons } from '@/lib/db'
+import { listOrders, updateOrderStatus, insertOrder, recordOrderCoupon, listCoupons, deleteOrder } from '@/lib/db'
 import { useCartStore } from '@/store/cart'
 import { useCatalogStore } from '@/store/catalog'
 import { resolveImage } from '@/utils/image'
@@ -60,6 +60,21 @@ async function changeStatus(order, event) {
   const newStatus = event.target.value
   const oldStatus = order.status
   await updateOrderStatus(order.id, newStatus, oldStatus)
+  await load()
+  await catalog.fetch(true)
+}
+
+async function removeOrder(order) {
+  const orderNum = `#${String(order.id).padStart(4, '0')}`
+  const client = order.profiles?.name || order.customer_name || 'Anónimo'
+  if (!confirm(`¿Estás seguro de que deseas eliminar permanentemente el pedido ${orderNum} de ${client}? Esta acción no se puede deshacer.`)) {
+    return
+  }
+  const res = await deleteOrder(order.id)
+  if (res?.error) {
+    alert(`Error al eliminar el pedido: ${res.error}`)
+    return
+  }
   await load()
   await catalog.fetch(true)
 }
@@ -264,14 +279,17 @@ const metrics = computed(() => {
   const currOrders = filteredOrders.value
   const priorOrders = priorPeriodOrders.value
 
-  const currSales = currOrders.reduce((s, o) => s + Number(o.subtotal || 0), 0)
-  const priorSales = priorOrders.reduce((s, o) => s + Number(o.subtotal || 0), 0)
+  const validCurrOrders = currOrders.filter((o) => o.status !== 'cancelado')
+  const validPriorOrders = priorOrders.filter((o) => o.status !== 'cancelado')
 
-  const currCount = currOrders.length
-  const priorCount = priorOrders.length
+  const currSales = validCurrOrders.reduce((s, o) => s + Number(o.subtotal || 0), 0)
+  const priorSales = validPriorOrders.reduce((s, o) => s + Number(o.subtotal || 0), 0)
 
-  const currUnits = currOrders.reduce((s, o) => s + (o.order_items || []).reduce((sum, i) => sum + (i.qty || 0), 0), 0)
-  const priorUnits = priorOrders.reduce((s, o) => s + (o.order_items || []).reduce((sum, i) => sum + (i.qty || 0), 0), 0)
+  const currCount = validCurrOrders.length
+  const priorCount = validPriorOrders.length
+
+  const currUnits = validCurrOrders.reduce((s, o) => s + (o.order_items || []).reduce((sum, i) => sum + (i.qty || 0), 0), 0)
+  const priorUnits = validPriorOrders.reduce((s, o) => s + (o.order_items || []).reduce((sum, i) => sum + (i.qty || 0), 0), 0)
 
   const currTicket = currCount > 0 ? currSales / currCount : 0
   const priorTicket = priorCount > 0 ? priorSales / priorCount : 0
@@ -335,7 +353,7 @@ const withCouponCount = computed(() => {
         return t >= win.from.getTime() && t <= win.to.getTime()
       })
     : orders.value
-  return base.filter((o) => Boolean(o.coupon_code)).length
+  return base.filter((o) => Boolean(o.coupon_code) && o.status !== 'cancelado').length
 })
 
 // Lista única de códigos de cupón usados en los pedidos
@@ -363,11 +381,15 @@ const ordersByDay = computed(() => {
         orders: [],
         total: 0,
         units: 0,
+        validOrdersCount: 0,
       }
     }
     map[key].orders.push(o)
-    map[key].total += Number(o.subtotal || 0)
-    map[key].units += (o.order_items || []).reduce((s, i) => s + (i.qty || 0), 0)
+    if (o.status !== 'cancelado') {
+      map[key].total += Number(o.subtotal || 0)
+      map[key].units += (o.order_items || []).reduce((s, i) => s + (i.qty || 0), 0)
+      map[key].validOrdersCount += 1
+    }
   }
   return Object.values(map).sort((a, b) => b.rawDate - a.rawDate)
 })
@@ -388,11 +410,15 @@ const ordersByMonth = computed(() => {
         orders: [],
         total: 0,
         units: 0,
+        validOrdersCount: 0,
       }
     }
     map[key].orders.push(o)
-    map[key].total += Number(o.subtotal || 0)
-    map[key].units += (o.order_items || []).reduce((s, i) => s + (i.qty || 0), 0)
+    if (o.status !== 'cancelado') {
+      map[key].total += Number(o.subtotal || 0)
+      map[key].units += (o.order_items || []).reduce((s, i) => s + (i.qty || 0), 0)
+      map[key].validOrdersCount += 1
+    }
   }
   return Object.values(map).sort((a, b) => b.key.localeCompare(a.key))
 })
@@ -934,7 +960,7 @@ async function saveManualSale() {
               <th>Total</th>
               <th>Fecha y Hora</th>
               <th>Estado</th>
-              <th>Factura</th>
+              <th>Acciones</th>
             </tr>
           </thead>
           <tbody>
@@ -990,14 +1016,24 @@ async function saveManualSale() {
                 </select>
               </td>
               <td>
-                <button
-                  class="admin-mini invoice-btn"
-                  title="Ver / Imprimir Factura con descuentos"
-                  aria-label="Factura"
-                  @click="cart.printInvoice(order)"
-                >
-                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
-                </button>
+                <div class="row-actions">
+                  <button
+                    class="admin-mini invoice-btn"
+                    title="Ver / Imprimir Factura"
+                    aria-label="Factura"
+                    @click="cart.printInvoice(order)"
+                  >
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
+                  </button>
+                  <button
+                    class="admin-mini delete-order-btn"
+                    title="Eliminar venta permanentemente"
+                    aria-label="Eliminar venta"
+                    @click="removeOrder(order)"
+                  >
+                    <AppIcon name="trash" :size="15" />
+                  </button>
+                </div>
               </td>
             </tr>
           </tbody>
@@ -1024,10 +1060,10 @@ async function saveManualSale() {
                   <strong>{{ grp.label }}</strong>
                 </td>
                 <td>
-                  <span class="pill-metric">{{ grp.orders.length }} pedidos</span>
+                  <span class="pill-metric">{{ grp.validOrdersCount }} venta(s)</span>
                 </td>
                 <td>{{ grp.units }} uds</td>
-                <td>${{ (grp.total / grp.orders.length).toFixed(2) }}</td>
+                <td>${{ grp.validOrdersCount ? (grp.total / grp.validOrdersCount).toFixed(2) : '0.00' }}</td>
                 <td class="order-price">${{ grp.total.toFixed(2) }}</td>
                 <td>
                   <button class="expand-btn">
@@ -1048,7 +1084,7 @@ async function saveManualSale() {
                           <th>Cupón</th>
                           <th>Total</th>
                           <th>Estado</th>
-                          <th>Factura</th>
+                          <th>Acciones</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -1075,13 +1111,23 @@ async function saveManualSale() {
                             </select>
                           </td>
                           <td>
-                            <button
-                              class="admin-mini invoice-btn"
-                              title="Ver Factura"
-                              @click="cart.printInvoice(subOrder)"
-                            >
-                              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path></svg>
-                            </button>
+                            <div class="row-actions">
+                              <button
+                                class="admin-mini invoice-btn"
+                                title="Ver Factura"
+                                @click="cart.printInvoice(subOrder)"
+                              >
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path></svg>
+                              </button>
+                              <button
+                                class="admin-mini delete-order-btn"
+                                title="Eliminar venta permanentemente"
+                                aria-label="Eliminar venta"
+                                @click="removeOrder(subOrder)"
+                              >
+                                <AppIcon name="trash" :size="14" />
+                              </button>
+                            </div>
                           </td>
                         </tr>
                       </tbody>
@@ -1114,10 +1160,10 @@ async function saveManualSale() {
                   <strong>{{ grp.label }}</strong>
                 </td>
                 <td>
-                  <span class="pill-metric">{{ grp.orders.length }} pedidos</span>
+                  <span class="pill-metric">{{ grp.validOrdersCount }} venta(s)</span>
                 </td>
                 <td>{{ grp.units }} uds</td>
-                <td>${{ (grp.total / grp.orders.length).toFixed(2) }}</td>
+                <td>${{ grp.validOrdersCount ? (grp.total / grp.validOrdersCount).toFixed(2) : '0.00' }}</td>
                 <td class="order-price">${{ grp.total.toFixed(2) }}</td>
                 <td>
                   <button class="expand-btn">
@@ -1139,7 +1185,7 @@ async function saveManualSale() {
                           <th>Cupón</th>
                           <th>Total</th>
                           <th>Estado</th>
-                          <th>Factura</th>
+                          <th>Acciones</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -1167,13 +1213,23 @@ async function saveManualSale() {
                             </select>
                           </td>
                           <td>
-                            <button
-                              class="admin-mini invoice-btn"
-                              title="Ver Factura"
-                              @click="cart.printInvoice(subOrder)"
-                            >
-                              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path></svg>
-                            </button>
+                            <div class="row-actions">
+                              <button
+                                class="admin-mini invoice-btn"
+                                title="Ver Factura"
+                                @click="cart.printInvoice(subOrder)"
+                              >
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path></svg>
+                              </button>
+                              <button
+                                class="admin-mini delete-order-btn"
+                                title="Eliminar venta permanentemente"
+                                aria-label="Eliminar venta"
+                                @click="removeOrder(subOrder)"
+                              >
+                                <AppIcon name="trash" :size="14" />
+                              </button>
+                            </div>
                           </td>
                         </tr>
                       </tbody>
@@ -1929,6 +1985,26 @@ async function saveManualSale() {
 
 .invoice-btn:hover {
   background: var(--rose-100);
+}
+
+.row-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.delete-order-btn {
+  color: #dc2626;
+  background: #fef2f2;
+  border-color: #fecaca;
+  transition: all 0.2s;
+}
+
+.delete-order-btn:hover {
+  background: #dc2626;
+  color: #ffffff;
+  border-color: #dc2626;
+  transform: translateY(-1px);
 }
 
 /* Grouped View Styles */
