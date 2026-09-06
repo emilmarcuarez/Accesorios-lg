@@ -49,6 +49,10 @@ export const DEFAULT_TOP_BAR = {
   text2: '10% OFF en tu primera compra con el código: BIENVENIDA',
 }
 
+export const DEFAULT_ABOUT = {
+  image: '/img/mujer.png',
+}
+
 export const useSettingsStore = defineStore('settings', {
   state: () => ({
     lowStock: 5,
@@ -59,19 +63,21 @@ export const useSettingsStore = defineStore('settings', {
       banner2: { ...DEFAULT_BANNERS.banner2 },
     },
     registerBanner: { ...DEFAULT_REGISTER_BANNER },
+    about: { ...DEFAULT_ABOUT },
     storeInfo: { ...DEFAULT_STORE },
     loaded: false,
   }),
   actions: {
     async fetch(force = false) {
       if (this.loaded && !force) return
-      const [stockRes, bannersRes, storeRes, heroRes, registerBannerRes, topBarRes] = await Promise.all([
+      const [stockRes, bannersRes, storeRes, heroRes, registerBannerRes, topBarRes, aboutRes] = await Promise.all([
         getSetting('low_stock_threshold'),
         getSetting('home_promo_banners'),
         getSetting('store_info'),
         getSetting('home_hero'),
         getSetting('home_register_banner'),
         getSetting('site_top_bar'),
+        getSetting('about_page'),
       ])
 
       if (stockRes.data !== null && stockRes.data !== undefined && stockRes.data !== '') {
@@ -135,7 +141,20 @@ export const useSettingsStore = defineStore('settings', {
         }
       }
 
+      if (aboutRes?.data) {
+        try {
+          const parsed = typeof aboutRes.data === 'string' ? JSON.parse(aboutRes.data) : aboutRes.data
+          this.about = { ...DEFAULT_ABOUT, ...(parsed || {}) }
+        } catch {
+          this.about = { ...DEFAULT_ABOUT }
+        }
+      }
+
       this.loaded = true
+    },
+    async saveAbout(newAbout) {
+      this.about = { ...this.about, ...newAbout }
+      return await setSetting('about_page', JSON.stringify(this.about))
     },
     async saveTopBar(newTopBar) {
       this.topBar = { ...this.topBar, ...newTopBar }

@@ -39,7 +39,6 @@ const navLinks = [
   { label: 'Inicio', to: '/' },
   { label: 'Nosotros', to: '/nosotros' },
   { label: 'Tienda', to: '/tienda' },
-  { label: 'Categorías', to: '/categorias' },
   { label: 'Regalos', to: '/tienda/personalizados' },
   { label: 'Contactos', to: '/contactos' },
 ]

@@ -1,5 +1,18 @@
 <script setup>
+import { computed, onMounted } from 'vue'
 import AppIcon from '@/components/AppIcon.vue'
+import { useSettingsStore, DEFAULT_ABOUT } from '@/store/settings'
+import { resolveImage } from '@/utils/image'
+
+const settings = useSettingsStore()
+
+onMounted(() => {
+  settings.fetch()
+})
+
+const aboutImage = computed(() => {
+  return resolveImage(settings.about?.image || DEFAULT_ABOUT.image)
+})
 
 const values = [
   { icon: 'heart', title: 'Hecho con amor', text: 'Cada detalle es pensado para ti.' },
@@ -23,7 +36,7 @@ const values = [
 
     <section class="container about-content">
       <div class="about-img" data-aos="fade-right">
-        <img :src="'/img/mujer.png'" alt="Detallitos Accesorios" />
+        <img :src="aboutImage" alt="Detallitos Accesorios" />
       </div>
       <div class="about-text" data-aos="fade-left">
         <span class="eyebrow">Nuestra esencia</span>

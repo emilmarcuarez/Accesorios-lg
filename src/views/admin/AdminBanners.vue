@@ -7,6 +7,7 @@ import {
   DEFAULT_HERO,
   DEFAULT_REGISTER_BANNER,
   DEFAULT_TOP_BAR,
+  DEFAULT_ABOUT,
 } from '@/store/settings'
 import { uploadImage, uploadHeroMedia, deleteHeroMedia } from '@/lib/db'
 import { resolveImage } from '@/utils/image'
@@ -19,6 +20,7 @@ const uploadingHero = ref(false)
 const uploadingHeroVideo = ref(false)
 const uploading1 = ref(false)
 const uploading2 = ref(false)
+const uploadingAbout = ref(false)
 
 const form = ref({
   topBar: { ...DEFAULT_TOP_BAR },
@@ -26,6 +28,7 @@ const form = ref({
   banner1: { ...DEFAULT_BANNERS.banner1 },
   banner2: { ...DEFAULT_BANNERS.banner2 },
   registerBanner: { ...DEFAULT_REGISTER_BANNER },
+  about: { ...DEFAULT_ABOUT },
 })
 
 async function onHeroVideoUpload(event) {
@@ -68,6 +71,7 @@ onMounted(async () => {
     banner1: { ...settings.banners.banner1 },
     banner2: { ...settings.banners.banner2 },
     registerBanner: { ...DEFAULT_REGISTER_BANNER, ...(settings.registerBanner || {}) },
+    about: { ...DEFAULT_ABOUT, ...(settings.about || {}) },
   }
 })
 
@@ -77,14 +81,16 @@ async function onImageUpload(bannerKey, event) {
 
   if (bannerKey === 'hero') uploadingHero.value = true
   else if (bannerKey === 'banner1') uploading1.value = true
-  else uploading2.value = true
+  else if (bannerKey === 'banner2') uploading2.value = true
+  else if (bannerKey === 'about') uploadingAbout.value = true
 
   const res = await uploadImage(file)
 
   if (res.error) {
     if (bannerKey === 'hero') uploadingHero.value = false
     else if (bannerKey === 'banner1') uploading1.value = false
-    else uploading2.value = false
+    else if (bannerKey === 'banner2') uploading2.value = false
+    else if (bannerKey === 'about') uploadingAbout.value = false
     alert(res.error)
     return
   }
@@ -102,7 +108,8 @@ async function onImageUpload(bannerKey, event) {
 
   if (bannerKey === 'hero') uploadingHero.value = false
   else if (bannerKey === 'banner1') uploading1.value = false
-  else uploading2.value = false
+  else if (bannerKey === 'banner2') uploading2.value = false
+  else if (bannerKey === 'about') uploadingAbout.value = false
 
   if (!ok) {
     alert('La imagen tardó en procesarse. Se asignó la URL pero puede tardar unos segundos en reflejarse.')
@@ -119,6 +126,7 @@ async function save() {
     settings.saveHero(form.value.hero),
     settings.saveBanners({ banner1: form.value.banner1, banner2: form.value.banner2 }),
     settings.saveRegisterBanner(form.value.registerBanner),
+    settings.saveAbout(form.value.about),
   ])
   loading.value = false
   saved.value = true
@@ -135,6 +143,7 @@ function restoreDefaults() {
     banner1: { ...DEFAULT_BANNERS.banner1 },
     banner2: { ...DEFAULT_BANNERS.banner2 },
     registerBanner: { ...DEFAULT_REGISTER_BANNER },
+    about: { ...DEFAULT_ABOUT },
   }
 }
 </script>
@@ -770,6 +779,48 @@ function restoreDefaults() {
               {{ form.registerBanner.buttonText || 'Registrarme y Obtener 10% OFF' }}
             </div>
           </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ================= PÁGINA NOSOTROS (FOTO PRINCIPAL) ================= -->
+    <div class="banner-box">
+      <div class="banner-box-header">
+        <div class="banner-badge badge-rose">
+          <AppIcon name="sparkles" :size="14" />
+          Página Nosotros (Nuestra Esencia)
+        </div>
+        <span class="preview-hint">Foto principal de la sección "Nuestra esencia" en /nosotros</span>
+      </div>
+
+      <div class="banner-fields">
+        <div class="image-upload-block">
+          <label>Foto de la Sección "Nuestra esencia"</label>
+          <div class="image-row">
+            <img
+              v-if="form.about?.image"
+              :src="resolveImage(form.about.image)"
+              class="banner-thumb"
+              alt="Página Nosotros"
+            />
+            <div class="upload-actions">
+              <label class="upload-button" :class="{ disabled: uploadingAbout }">
+                <input
+                  type="file"
+                  accept="image/*"
+                  hidden
+                  :disabled="uploadingAbout"
+                  @change="onImageUpload('about', $event)"
+                />
+                <AppIcon name="download" :size="15" />
+                {{ uploadingAbout ? 'Subiendo imagen...' : 'Cambiar foto' }}
+              </label>
+            </div>
+          </div>
+          <small class="field-help" style="margin-top: 8px; display: block;">
+            Puedes previsualizar la página pública directamente en:
+            <router-link to="/nosotros" target="_blank" style="color: var(--rose-600); font-weight: 600;">/nosotros →</router-link>
+          </small>
         </div>
       </div>
     </div>

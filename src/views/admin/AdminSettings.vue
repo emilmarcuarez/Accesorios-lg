@@ -1,15 +1,19 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import AppIcon from '@/components/AppIcon.vue'
-import { useSettingsStore } from '@/store/settings'
+import { useSettingsStore, DEFAULT_ABOUT } from '@/store/settings'
 import { DEFAULT_STORE, STORE } from '@/config'
+import { uploadImage } from '@/lib/db'
+import { resolveImage } from '@/utils/image'
 
 const settings = useSettingsStore()
 
 const loading = ref(false)
 const saved = ref(false)
+const uploadingAbout = ref(false)
 
 const lowStock = ref(5)
+const aboutForm = ref({ ...DEFAULT_ABOUT })
 const form = ref({
   name: DEFAULT_STORE.name,
   tagline: DEFAULT_STORE.tagline,
@@ -26,6 +30,10 @@ const form = ref({
 onMounted(async () => {
   await settings.fetch(true)
   lowStock.value = settings.lowStock || 5
+  aboutForm.value = {
+    ...DEFAULT_ABOUT,
+    ...(settings.about || {}),
+  }
   form.value = {
     name: settings.storeInfo.name || DEFAULT_STORE.name,
     tagline: settings.storeInfo.tagline || DEFAULT_STORE.tagline,
@@ -40,6 +48,33 @@ onMounted(async () => {
   }
 })
 
+async function onAboutImageUpload(event) {
+  const file = event.target.files?.[0]
+  if (!file) return
+  uploadingAbout.value = true
+  const res = await uploadImage(file)
+  if (res.error) {
+    uploadingAbout.value = false
+    alert(res.error)
+    return
+  }
+  let ok = false
+  for (let i = 0; i < 8; i++) {
+    const check = await fetch(`/api/img?src=${encodeURIComponent(res.url)}`).catch(() => ({ ok: false }))
+    if (check.ok) {
+      ok = true
+      break
+    }
+    await new Promise((resolve) => setTimeout(resolve, 700))
+  }
+  uploadingAbout.value = false
+  aboutForm.value.image = res.url
+}
+
+function restoreAboutDefault() {
+  aboutForm.value.image = DEFAULT_ABOUT.image
+}
+
 async function save() {
   loading.value = true
   saved.value = false
@@ -52,6 +87,7 @@ async function save() {
   await Promise.all([
     settings.saveStoreInfo(form.value),
     settings.saveLowStock(lowStock.value),
+    settings.saveAbout(aboutForm.value),
   ])
 
   loading.value = false
@@ -273,7 +309,65 @@ async function save() {
         </div>
       </div>
 
-      <!-- 5. ACCESO DIRECTO A BANNERS DE LA PORTADA -->
+      <!-- 5. PÁGINA NOSOTROS (IMAGEN CONFIGURABLE) -->
+      <div class="admin-card">
+        <div class="card-head">
+          <div class="card-icon"><AppIcon name="sparkles" :size="20" /></div>
+          <div>
+            <h2 class="card-title">Página Nosotros · Foto Principal</h2>
+            <p class="card-desc">Personaliza la imagen que se exhibe en la sección "Nuestra esencia" de la página /nosotros.</p>
+          </div>
+        </div>
+
+        <div class="about-image-config">
+          <div class="about-image-preview-col">
+            <div class="about-image-frame">
+              <img
+                :src="resolveImage(aboutForm.image || DEFAULT_ABOUT.image)"
+                alt="Vista previa Nosotros"
+                class="about-image-thumb"
+              />
+              <span class="preview-badge">Vista previa</span>
+            </div>
+          </div>
+
+          <div class="about-image-actions-col">
+            <label class="field-label">Foto de la Sección</label>
+            <p class="field-hint" style="margin-top: -6px; margin-bottom: 4px;">
+              Selecciona una nueva foto desde tu teléfono o computadora.
+            </p>
+            <div class="upload-action-row">
+              <label class="admin-btn upload-btn" :class="{ disabled: uploadingAbout }">
+                <input
+                  type="file"
+                  accept="image/*"
+                  hidden
+                  :disabled="uploadingAbout"
+                  @change="onAboutImageUpload"
+                />
+                <AppIcon name="download" :size="16" />
+                {{ uploadingAbout ? 'Subiendo imagen...' : 'Cambiar foto' }}
+              </label>
+              <button
+                v-if="aboutForm.image !== DEFAULT_ABOUT.image"
+                type="button"
+                class="admin-btn admin-btn-ghost reset-btn"
+                @click="restoreAboutDefault"
+              >
+                Restablecer foto original
+              </button>
+            </div>
+
+            <div class="about-nav-link-row">
+              <router-link to="/nosotros" target="_blank" class="live-link">
+                Ver página /nosotros en vivo →
+              </router-link>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 6. ACCESO DIRECTO A BANNERS DE LA PORTADA -->
       <div class="admin-card banner-shortcut-card">
         <div class="card-head">
           <div class="card-icon"><AppIcon name="sparkles" :size="20" /></div>
@@ -519,5 +613,113 @@ async function save() {
   padding: 10px 18px;
   font-size: 13px;
   font-weight: 600;
+}
+
+.about-image-config {
+  display: grid;
+  grid-template-columns: 240px 1fr;
+  gap: 28px;
+  align-items: flex-start;
+}
+
+@media (max-width: 768px) {
+  .about-image-config {
+    grid-template-columns: 1fr;
+  }
+}
+
+.about-image-preview-col {
+  width: 100%;
+}
+
+.about-image-frame {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 4 / 5;
+  max-height: 280px;
+  border-radius: 12px;
+  overflow: hidden;
+  border: 1.5px solid var(--rose-200, #f3c6d2);
+  background: #fdf2f4;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+}
+
+.about-image-thumb {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.preview-badge {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  background: rgba(0, 0, 0, 0.65);
+  color: #ffffff;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 3px 8px;
+  border-radius: 6px;
+  backdrop-filter: blur(4px);
+}
+
+.about-image-actions-col {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.upload-action-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.upload-btn {
+  background: var(--rose-600);
+  color: #ffffff;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 16px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  border: none;
+  transition: background 0.2s;
+}
+
+.upload-btn:hover {
+  background: var(--rose-700);
+}
+
+.upload-btn.disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.reset-btn {
+  border: 1px solid var(--line);
+  background: #f8fafc;
+  color: var(--ink-700);
+  padding: 9px 14px;
+  border-radius: 8px;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.reset-btn:hover {
+  background: #e2e8f0;
+}
+
+.url-field {
+  max-width: 520px;
+}
+
+.about-nav-link-row {
+  margin-top: 2px;
 }
 </style>
