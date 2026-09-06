@@ -190,6 +190,9 @@ create policy "orders_select_owner_or_admin" on public.orders
 drop policy if exists "orders_update_admin" on public.orders;
 create policy "orders_update_admin" on public.orders
   for update using (public.is_admin()) with check (public.is_admin());
+drop policy if exists "orders_delete_admin" on public.orders;
+create policy "orders_delete_admin" on public.orders
+  for delete using (public.is_admin());
 
 -- ORDER ITEMS
 drop policy if exists "items_insert_owner" on public.order_items;
@@ -198,6 +201,9 @@ create policy "items_insert_owner" on public.order_items
 drop policy if exists "items_select_owner_or_admin" on public.order_items;
 create policy "items_select_owner_or_admin" on public.order_items
   for select using (true);
+drop policy if exists "items_delete_admin" on public.order_items;
+create policy "items_delete_admin" on public.order_items
+  for delete using (true);
 
 -- ------------------------------------------------------------
 -- 5. DATOS INICIALES

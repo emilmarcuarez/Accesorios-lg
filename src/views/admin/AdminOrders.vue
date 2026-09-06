@@ -70,9 +70,14 @@ async function removeOrder(order) {
   if (!confirm(`¿Estás seguro de que deseas eliminar permanentemente el pedido ${orderNum} de ${client}? Esta acción no se puede deshacer.`)) {
     return
   }
+  // Quitar inmediatamente de pantalla para respuesta instantánea
+  const backupOrders = [...orders.value]
+  orders.value = orders.value.filter((o) => o.id !== order.id)
+
   const res = await deleteOrder(order.id)
   if (res?.error) {
     alert(`Error al eliminar el pedido: ${res.error}`)
+    orders.value = backupOrders
     return
   }
   await load()

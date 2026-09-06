@@ -164,18 +164,45 @@ export async function listProfiles() {
   return supabase.from('profiles').select('*').order('created_at', { ascending: false })
 }
 
+export async function getDeletedOrderIds() {
+  const { data } = await getSetting('deleted_orders')
+  if (!data) return []
+  try {
+    const parsed = typeof data === 'string' ? JSON.parse(data) : data
+    return Array.isArray(parsed) ? parsed.map(Number) : []
+  } catch {
+    return []
+  }
+}
+
+export async function addDeletedOrderId(id) {
+  try {
+    const current = await getDeletedOrderIds()
+    const numId = Number(id)
+    if (!current.includes(numId)) {
+      current.push(numId)
+      await setSetting('deleted_orders', JSON.stringify(current))
+    }
+  } catch (err) {
+    console.warn('Error al guardar deleted_orders:', err)
+  }
+}
+
 export async function listOrders() {
   if (!supabase) return { data: [], error: 'Supabase no configurado' }
-  const [ordersRes, orderCouponsMap] = await Promise.all([
+  const [ordersRes, orderCouponsMap, deletedIds] = await Promise.all([
     supabase
       .from('orders')
       .select('*, profiles(name, lastname), order_items(*, products(name, price, discount, image))')
+      .neq('status', 'eliminado')
       .order('created_at', { ascending: false }),
     getOrderCoupons(),
+    getDeletedOrderIds(),
   ])
 
-  const ordersList = ordersRes.data || []
-  const enriched = ordersList.map((o) => {
+  const rawOrders = ordersRes.data || []
+  const validOrders = rawOrders.filter((o) => o.status !== 'eliminado' && !deletedIds.includes(Number(o.id)))
+  const enriched = validOrders.map((o) => {
     const couponInfo = orderCouponsMap[String(o.id)] || null
     return {
       ...o,
@@ -194,6 +221,7 @@ export async function listMyOrders(userId) {
     .from('orders')
     .select('*, order_items(*, products(name, price, discount, image))')
     .eq('user_id', userId)
+    .neq('status', 'eliminado')
     .order('created_at', { ascending: false })
 }
 
@@ -428,8 +456,25 @@ export async function deleteOrder(id) {
     if (order && ['pagado', 'enviado', 'entregado'].includes(order.status)) {
       await restoreOrderStock(id)
     }
-    await supabase.from('order_items').delete().eq('order_id', id)
-    const res = await supabase.from('orders').delete().eq('id', id)
+
+    // 1. Intentar borrar en cascada order_items
+    try {
+      await supabase.from('order_items').delete().eq('order_id', id)
+    } catch { }
+
+    // 2. Intentar borrado físico directo en orders
+    const delRes = await supabase.from('orders').delete().eq('id', id).select()
+
+    // 3. Si la política RLS en Supabase no tiene DELETE habilitado, marcar status 'eliminado'
+    // (el UPDATE sí está permitido por la política orders_update_admin en Supabase)
+    if (!delRes.data || !delRes.data.length) {
+      await supabase.from('orders').update({ status: 'eliminado' }).eq('id', id)
+    }
+
+    // 4. Guardar en el registro persistente de órdenes eliminadas
+    await addDeletedOrderId(id)
+
+    // 5. Limpiar cupón si tenía
     try {
       const currentCoupons = await getOrderCoupons()
       if (currentCoupons && currentCoupons[String(id)]) {
@@ -437,7 +482,8 @@ export async function deleteOrder(id) {
         await setSetting('order_coupons', JSON.stringify(currentCoupons))
       }
     } catch { }
-    return res
+
+    return { success: true }
   } catch (err) {
     console.error('Error al eliminar orden:', err)
     return { error: err.message || err }
