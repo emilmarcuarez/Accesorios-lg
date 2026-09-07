@@ -27,15 +27,15 @@ async function submit() {
   info.value = ''
   loading.value = true
   const res = await auth.signUp(form.value)
-  loading.value = false
   if (res.error) {
+    loading.value = false
     error.value = res.error
     return
   }
-  if (res.user && !auth.user) {
-    info.value = 'Revisa tu correo para confirmar tu cuenta.'
-    return
+  if (!auth.user) {
+    await auth.signIn(form.value.email, form.value.password)
   }
+  loading.value = false
   router.push('/cuenta')
 }
 </script>
