@@ -25,6 +25,7 @@ const form = ref(emptyForm())
 function emptyForm() {
   return {
     name: '',
+    description: '',
     category_id: '',
     price: 0,
     old_price: 0,
@@ -47,6 +48,7 @@ onMounted(async () => {
     if (p) {
       form.value = {
         name: p.name,
+        description: p.description || '',
         category_id: p.category_id,
         price: p.price,
         old_price: p.old_price || 0,
@@ -93,7 +95,11 @@ function removeImage() {
 
 async function save() {
   saving.value = true
-  const payload = { ...form.value, category_id: form.value.category_id || null }
+  const payload = {
+    ...form.value,
+    description: form.value.description ? form.value.description.trim() : null,
+    category_id: form.value.category_id || null,
+  }
   if (isEdit.value) await updateProduct(route.params.id, payload)
   else await createProduct(payload)
   await catalog.fetch(true)
@@ -139,6 +145,15 @@ async function save() {
         <div class="field">
           <label>Nombre</label>
           <input v-model="form.name" type="text" placeholder="Nombre del producto" />
+        </div>
+
+        <div class="field">
+          <label>Descripción</label>
+          <textarea
+            v-model="form.description"
+            rows="4"
+            placeholder="Descripción detallada del producto (materiales, medidas, cuidados, etc.)..."
+          ></textarea>
         </div>
 
         <div class="field">
@@ -330,7 +345,8 @@ async function save() {
 }
 
 .field input,
-.field select {
+.field select,
+.field textarea {
   border: 1px solid var(--line);
   border-radius: 10px;
   padding: 12px 14px;
@@ -341,10 +357,13 @@ async function save() {
   width: 100%;
   min-width: 0;
   box-sizing: border-box;
+  font-family: inherit;
+  resize: vertical;
 }
 
 .field input:focus,
-.field select:focus {
+.field select:focus,
+.field textarea:focus {
   border-color: var(--rose-300);
   background: var(--white);
 }

@@ -220,9 +220,8 @@ onUnmounted(() => {
             Descuento especial del {{ product.discount }}% aplicado por categoría: <strong>{{ product.categoryName }}</strong>
           </div>
 
-          <p class="desc">
-            Accesorio elaborado con amor para acompañarte en cada ocasión. Calidad premium, diseño
-            delicado y empaque listo para regalar.
+          <p v-if="product.description" class="desc">
+            {{ product.description }}
           </p>
 
           <div class="qty-row">
@@ -596,6 +595,8 @@ onUnmounted(() => {
   font-size: 15px;
   margin-bottom: 26px;
   max-width: 480px;
+  line-height: 1.6;
+  white-space: pre-line;
 }
 
 .qty-row {

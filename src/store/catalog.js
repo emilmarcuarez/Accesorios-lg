@@ -23,6 +23,7 @@ function mapProduct(p, categoriesMap = {}) {
   return {
     id: p.id,
     name: p.name,
+    description: p.description || '',
     category: p.categories?.slug || '',
     categoryName: p.categories?.name || '',
     categoryId: p.category_id,

@@ -61,6 +61,7 @@ const filteredProducts = computed(() => {
       (p) =>
         (p.name && p.name.toLowerCase().includes(q)) ||
         String(p.id).includes(q) ||
+        (p.description && p.description.toLowerCase().includes(q)) ||
         (p.categories?.name && p.categories.name.toLowerCase().includes(q)),
     )
   }
