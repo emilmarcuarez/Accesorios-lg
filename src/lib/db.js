@@ -275,27 +275,83 @@ export async function deleteGallery(id) {
 }
 
 export async function uploadImage(file) {
-  const key = import.meta.env.VITE_X02
-  if (!key) return { error: 'VITE_X02 no configurado en .env' }
-  const form = new FormData()
-  form.append('file', file)
+  if (!file) return { error: 'No se seleccionó ningún archivo' }
+
+  // 1. Intentar subir mediante el proxy local (/api/upload -> x02.me sin bloqueo de CORS)
   try {
-    const res = await fetch('https://x02.me/api/upload', {
+    const form = new FormData()
+    form.append('file', file)
+    const res = await fetch('/api/upload', {
       method: 'POST',
-      headers: { 'x-api-key': key },
       body: form,
     })
-    if (!res.ok) return { error: 'Error al subir la imagen (x02.me)' }
-    const text = (await res.text()).trim()
-    let url = text
-    try {
-      const j = JSON.parse(text)
-      url = j.url || j.link || j.direct || j.data?.url || text
-    } catch { }
-    return { url }
-  } catch {
-    return { error: 'No se pudo conectar con x02.me' }
+    if (res.ok) {
+      const data = await res.json()
+      if (data?.url) return { url: data.url }
+    }
+  } catch (err) {
+    console.warn('Proxy /api/upload no disponible, intentando alternativas...', err)
   }
+
+  // 2. Intentar directamente a x02.me (por si está habilitado o fuera de navegador)
+  const key = import.meta.env.VITE_X02 || 'af5094f4148e430a96985bfe1e47090e'
+  if (key) {
+    try {
+      const form = new FormData()
+      form.append('file', file)
+      const res = await fetch('https://x02.me/api/upload', {
+        method: 'POST',
+        headers: { 'x-api-key': key },
+        body: form,
+      })
+      if (res.ok) {
+        const text = (await res.text()).trim()
+        let url = text
+        try {
+          const j = JSON.parse(text)
+          url = j.url || j.link || j.direct || j.data?.url || text
+        } catch { }
+        if (url && url.startsWith('http')) return { url }
+      }
+    } catch { }
+  }
+
+  // 3. Fallback de alta disponibilidad: Supabase Storage
+  if (supabase) {
+    try {
+      const fileExt = (file.name.split('.').pop() || 'jpg').toLowerCase()
+      const cleanName = file.name
+        .replace(/\.[^/.]+$/, '')
+        .replace(/[^a-zA-Z0-9_-]/g, '_')
+        .slice(0, 30)
+      const fileName = `img_${Date.now()}_${cleanName}.${fileExt}`
+
+      let uploadRes = await supabase.storage
+        .from('images')
+        .upload(fileName, file, { cacheControl: '3600', upsert: true })
+
+      let bucketUsed = 'images'
+      if (uploadRes.error) {
+        uploadRes = await supabase.storage
+          .from('hero-videos')
+          .upload(fileName, file, { cacheControl: '3600', upsert: true })
+        bucketUsed = 'hero-videos'
+      }
+
+      if (!uploadRes.error) {
+        const { data: publicData } = supabase.storage
+          .from(bucketUsed)
+          .getPublicUrl(fileName)
+        if (publicData?.publicUrl) {
+          return { url: publicData.publicUrl }
+        }
+      }
+    } catch (err) {
+      console.warn('Error al subir a Supabase Storage:', err)
+    }
+  }
+
+  return { error: 'No se pudo subir la imagen. Por favor intenta de nuevo.' }
 }
 
 export async function uploadHeroMedia(file, previousUrl = null) {
