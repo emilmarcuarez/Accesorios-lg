@@ -60,18 +60,49 @@ export const useCartStore = defineStore('cart', {
       this.drawerOpen = typeof open === 'boolean' ? open : !this.drawerOpen
     },
     add(product, qty = 1, selectedOption = null) {
-      const hasOpt = Boolean(selectedOption && selectedOption.name)
+      // Determinar si es un producto múltiple
+      const isMultiple = Boolean(product.isMultiple ?? (product.hasOptions && selectedOption?.isMultiple))
+
+      // Si no se pasó selectedOption pero el producto tiene opciones/fotos, tomar la primera por defecto
+      let opt = selectedOption
+      if (!opt && product.options && product.options.length > 0) {
+        opt = product.options[0]
+      } else if (!opt && product.images && product.images.length > 1) {
+        opt = {
+          id: 'opt_1',
+          name: 'Opción 1',
+          image: product.images[0],
+          stock: product.stock,
+          isMultiple: false,
+        }
+      }
+
+      const hasOpt = Boolean(opt && opt.name)
       const itemKey = hasOpt
-        ? `${product.id}__opt_${selectedOption.id || selectedOption.name}`
+        ? `${product.id}__opt_${opt.id || opt.name}`
         : String(product.id)
-      const optionName = hasOpt ? selectedOption.name : null
-      const optionId = hasOpt ? (selectedOption.id || null) : null
-      const itemImage = hasOpt && selectedOption.image
-        ? selectedOption.image
+      const optionName = hasOpt ? opt.name : null
+      const optionId = hasOpt ? (opt.id || null) : null
+      const itemImage = hasOpt && opt.image
+        ? opt.image
         : (product.image || (product.images && product.images[0]) || '')
-      const itemStock = hasOpt
-        ? (Number(selectedOption.stock) ?? 0)
-        : (product.stock ?? 0)
+
+      const itemStock = isMultiple
+        ? (Number(opt?.stock) ?? 0)
+        : (Number(product.stock) ?? 0)
+
+      // Para productos individuales: verificar que la suma de todas las opciones de este producto en el carrito no exceda el stock global
+      if (!isMultiple && product.stock !== undefined && product.stock !== null) {
+        const totalInCartForProd = this.items
+          .filter((it) => it.id === product.id)
+          .reduce((sum, it) => sum + it.qty, 0)
+        const remainingGlobal = Math.max(0, Number(product.stock) - totalInCartForProd)
+        if (remainingGlobal <= 0) {
+          this.drawerOpen = true
+          return
+        }
+        qty = Math.min(qty, remainingGlobal)
+      }
 
       const existing = this.items.find((item) => (item.itemKey || String(item.id)) === itemKey)
       if (existing) {
@@ -86,6 +117,8 @@ export const useCartStore = defineStore('cart', {
           name: product.name,
           optionName,
           optionId,
+          isMultiple,
+          globalStock: !isMultiple ? (Number(product.stock) ?? 0) : null,
           price: Number(product.price),
           originalPrice: Number(product.oldPrice || product.price),
           discount: product.discount || 0,
@@ -105,7 +138,16 @@ export const useCartStore = defineStore('cart', {
     increase(itemKey) {
       const item = this.items.find((i) => (i.itemKey || i.id) === itemKey || i.id === itemKey)
       if (!item) return
-      if (item.stock !== undefined && item.stock !== null && item.qty >= item.stock) return
+      if (item.isMultiple) {
+        if (item.stock !== undefined && item.stock !== null && item.qty >= item.stock) return
+      } else if (item.globalStock !== undefined && item.globalStock !== null) {
+        const totalForProd = this.items
+          .filter((it) => it.id === item.id)
+          .reduce((sum, it) => sum + it.qty, 0)
+        if (totalForProd >= item.globalStock) return
+      } else if (item.stock !== undefined && item.stock !== null && item.qty >= item.stock) {
+        return
+      }
       item.qty++
       this.saveToSupabase()
     },

@@ -231,10 +231,15 @@ function onKeydown(e) {
 const selectedOption = ref(null)
 
 function initSelectedOption() {
-  if (product.value?.hasOptions && product.value.options.length > 0) {
-    const firstWithStock = product.value.options.find((o) => (Number(o.stock) || 0) > 0)
-    selectedOption.value = firstWithStock || product.value.options[0]
-    const idx = productImages.value.findIndex((img) => img === selectedOption.value.image)
+  if (product.value?.options && product.value.options.length > 0) {
+    if (product.value.isMultiple) {
+      const firstWithStock = product.value.options.find((o) => (Number(o.stock) || 0) > 0)
+      selectedOption.value = firstWithStock || product.value.options[0]
+    } else {
+      // Individual: selecciona la primera opción (#1) por defecto
+      selectedOption.value = product.value.options[0]
+    }
+    const idx = productImages.value.findIndex((img) => img === selectedOption.value?.image)
     if (idx !== -1) {
       activeImageIndex.value = idx
     }
@@ -255,12 +260,13 @@ function selectOption(opt) {
 
 const remainingStock = computed(() => {
   if (!product.value) return 0
-  if (product.value.hasOptions && selectedOption.value) {
+  if (product.value.isMultiple && selectedOption.value) {
     const optStock = Number(selectedOption.value.stock) || 0
     const optKey = `${product.value.id}__opt_${selectedOption.value.id}`
     const inCart = (cart.items || []).find((it) => (it.itemKey || it.id) === optKey)?.qty || 0
     return Math.max(0, optStock - inCart)
   }
+  // Individual: maneja el stock global único del producto
   const inCart = (cart.items || []).filter((it) => it.id === product.value.id).reduce((s, it) => s + it.qty, 0)
   return Math.max(0, (Number(product.value.stock) || 0) - inCart)
 })
@@ -472,10 +478,10 @@ onUnmounted(() => {
           </p>
 
           <!-- Selector de Variantes / Opciones por foto (estilo Reyes Boutique) -->
-          <div v-if="product.hasOptions && product.options.length" class="variant-box">
+          <div v-if="product.options && product.options.length > 1" class="variant-box">
             <div class="variant-top-row">
               <div class="variant-label-group">
-                <span class="variant-heading">Variante</span>
+                <span class="variant-heading">{{ product.isMultiple ? 'Variante' : 'Opción' }}</span>
                 <span v-if="selectedOption" class="variant-active-pill">
                   {{ selectedOption.name }}
                 </span>
@@ -491,7 +497,7 @@ onUnmounted(() => {
                 class="variant-card"
                 :class="{
                   'active': selectedOption?.id === opt.id,
-                  'is-exhausted': (Number(opt.stock) || 0) <= 0,
+                  'is-exhausted': product.isMultiple ? ((Number(opt.stock) || 0) <= 0) : (remainingStock <= 0),
                 }"
                 :aria-label="`Elegir ${opt.name}`"
                 @click="selectOption(opt)"
@@ -507,8 +513,14 @@ onUnmounted(() => {
                 </div>
                 <div class="variant-card-footer">
                   <span class="variant-card-name" :title="opt.name">{{ opt.name }}</span>
-                  <span v-if="(Number(opt.stock) || 0) <= 0" class="variant-card-status out">Agotado</span>
-                  <span v-else class="variant-card-status in">{{ opt.stock }} disp.</span>
+                  <template v-if="product.isMultiple">
+                    <span v-if="(Number(opt.stock) || 0) <= 0" class="variant-card-status out">Agotado</span>
+                    <span v-else class="variant-card-status in">{{ opt.stock }} disp.</span>
+                  </template>
+                  <template v-else>
+                    <span v-if="remainingStock <= 0" class="variant-card-status out">Agotado</span>
+                    <span v-else class="variant-card-status in">{{ remainingStock }} disp.</span>
+                  </template>
                 </div>
               </button>
             </div>
@@ -533,7 +545,7 @@ onUnmounted(() => {
           </div>
 
           <div class="avail-row">
-            <template v-if="product.hasOptions && selectedOption">
+            <template v-if="product.isMultiple && selectedOption">
               <span v-if="remainingStock > 0" class="avail">
                 Stock disponible de <strong>{{ selectedOption.name }}</strong>: {{ remainingStock }}
               </span>
@@ -543,7 +555,7 @@ onUnmounted(() => {
             </template>
             <template v-else>
               <span class="avail" :class="{ out: remainingStock <= 0 }">
-                Stock: {{ remainingStock }}
+                Stock disponible: {{ remainingStock }}
               </span>
             </template>
           </div>

@@ -66,12 +66,12 @@ onMounted(async () => {
         discount: p.discount || 0,
         stock: p.stock ?? 0,
         has_options: hasOptions,
-        options: hasOptions && options.length
+        options: options.length
           ? options.map((opt, i) => ({
               id: opt.id || `opt_${Date.now()}_${i}`,
               name: opt.name || `Opción ${i + 1}`,
               image: opt.image || imgs[i] || '',
-              stock: Number(opt.stock) || 0,
+              stock: opt.stock !== null && opt.stock !== undefined ? Number(opt.stock) : 1,
             }))
           : imgs.map((imgUrl, i) => ({
               id: `opt_${Date.now()}_${i}`,
@@ -208,7 +208,7 @@ async function save() {
   let finalStock = Number(form.value.stock) || 0
 
   if (form.value.has_options && imgs.length > 0) {
-    // Sincronizar y limpiar opciones
+    // Modalidad Múltiple: Cada foto/variante tiene su propio stock independiente
     const cleanOptions = imgs.map((url, idx) => {
       const opt = form.value.options[idx] || {}
       return {
@@ -221,12 +221,32 @@ async function save() {
     finalStock = cleanOptions.reduce((s, o) => s + (Number(o.stock) || 0), 0)
     imageValue = JSON.stringify({
       has_options: true,
+      is_multiple: true,
+      options: cleanOptions,
+      images: imgs,
+    })
+  } else if (imgs.length > 1) {
+    // Modalidad Individual con varias fotos: Stock único general compartido
+    const cleanOptions = imgs.map((url, idx) => {
+      const opt = form.value.options && form.value.options[idx] ? form.value.options[idx] : {}
+      return {
+        id: opt.id || `opt_${idx + 1}`,
+        name: opt.name ? opt.name.trim() : `Opción ${idx + 1}`,
+        image: url,
+        stock: null,
+      }
+    })
+    finalStock = Number(form.value.stock) || 0
+    imageValue = JSON.stringify({
+      has_options: false,
+      is_multiple: false,
       options: cleanOptions,
       images: imgs,
     })
   } else {
-    // Producto simple / solo (puede tener múltiples fotos en galería pero sin selección)
-    imageValue = imgs.length > 1 ? JSON.stringify(imgs) : (imgs[0] || null)
+    // Producto individual estándar de 1 foto
+    finalStock = Number(form.value.stock) || 0
+    imageValue = imgs[0] || null
   }
 
   const payload = {
@@ -260,12 +280,12 @@ async function save() {
       <h2 class="form-page-title">{{ title }}</h2>
     </div>
 
-    <!-- Modalidad de producto: Simple vs Con Selección de Fotos / Opciones -->
+    <!-- Modalidad de producto: Individual vs Múltiple -->
     <div class="product-mode-box">
       <div class="mode-header">
         <span class="mode-title">✨ Modalidad del producto</span>
         <span class="mode-badge" :class="{ 'is-variants': form.has_options }">
-          {{ form.has_options ? 'Con selección de variantes por foto' : 'Producto individual estándar' }}
+          {{ form.has_options ? 'Múltiple (Stock independiente por opción)' : 'Individual (Stock general compartido)' }}
         </span>
       </div>
       <div class="mode-cards">
@@ -274,10 +294,10 @@ async function save() {
           <div class="mode-card-body">
             <div class="mode-card-title">
               <span class="mode-radio-dot"></span>
-              <strong>Producto Individual / Solo</strong>
+              <strong>Producto Individual</strong>
             </div>
             <p class="mode-card-desc">
-              Tiene un stock único general. Puedes montarle varias fotos para que el cliente las vea en la galería sin que sean de selección obligatoria.
+              Maneja un <strong>stock general único</strong>. Si subes varias fotos, los clientes pueden elegir su favorita en la tienda (y se envía por WhatsApp). Si le dan añadir directo desde el catálogo, se agrega la opción #1 por defecto.
             </p>
           </div>
         </label>
@@ -287,10 +307,10 @@ async function save() {
           <div class="mode-card-body">
             <div class="mode-card-title">
               <span class="mode-radio-dot"></span>
-              <strong>Producto con Selección de Fotos (Variantes)</strong>
+              <strong>Producto Múltiple</strong>
             </div>
             <p class="mode-card-desc">
-              Cada foto representa una opción a elegir (tono, color, modelo). Podrás asignarle su propio nombre y cantidad disponible a cada foto (ej: 2 de la opción A, 3 de la B).
+              Cada foto maneja un <strong>stock independiente</strong> y nombre propio (ej. 2 de la rosa, 3 de la dorada). En el catálogo se abre un popup para que el cliente elija su variante fácilmente.
             </p>
           </div>
         </label>
@@ -492,15 +512,22 @@ async function save() {
     </div>
 
     <!-- Gestor de Variantes / Opciones a todo lo ancho -->
-    <div v-if="form.has_options && form.images.length" class="options-full-section">
+    <div v-if="(form.has_options || form.images.length > 1) && form.images.length" class="options-full-section">
       <div class="options-section-header">
         <div class="options-title-block">
           <div class="options-title-line">
-            <span class="options-icon">🎨</span>
-            <h3 class="options-main-title">Stock y orden de cada opción</h3>
+            <span class="options-icon">{{ form.has_options ? '🎨' : '🖼️' }}</span>
+            <h3 class="options-main-title">
+              {{ form.has_options ? 'Stock y orden de cada opción (Múltiple)' : 'Opciones y fotos del producto (Individual)' }}
+            </h3>
           </div>
           <p class="options-main-desc">
-            El orden de estas tarjetas es <strong>el mismo orden en que aparecen en la tienda</strong> (#1 es la portada principal y sale seleccionada por defecto). Puedes cambiar el orden con los botones o pulsar <strong>Ordenar A-Z</strong>.
+            <template v-if="form.has_options">
+              Cada foto maneja su propio <strong>stock independiente</strong>. En el catálogo los clientes elegirán su variante mediante un popup rápido (#1 es la portada principal).
+            </template>
+            <template v-else>
+              Maneja un <strong>stock general único ({{ form.stock || 0 }} disp.)</strong>. Los clientes podrán elegir su foto favorita en la tienda y se enviará por WhatsApp. Si le dan añadir directo desde el catálogo, se agrega la opción #1 por defecto.
+            </template>
           </p>
         </div>
         <div class="options-header-actions">
@@ -517,8 +544,8 @@ async function save() {
             <span>Ordenar A-Z (1, 2, 3...)</span>
           </button>
           <div class="options-total-badge">
-            <span class="badge-label">Stock total:</span>
-            <strong class="badge-count">{{ totalOptionsStock }} unidades</strong>
+            <span class="badge-label">{{ form.has_options ? 'Stock total:' : 'Stock global:' }}</span>
+            <strong class="badge-count">{{ form.has_options ? totalOptionsStock : (form.stock || 0) }} unidades</strong>
           </div>
         </div>
       </div>
@@ -528,7 +555,11 @@ async function save() {
           v-for="(imgUrl, idx) in form.images"
           :key="idx"
           class="variant-edit-card"
-          :class="{ 'is-exhausted': (form.options[idx]?.stock || 0) <= 0 }"
+          :class="{
+            'is-exhausted': form.has_options
+              ? ((form.options[idx]?.stock || 0) <= 0)
+              : ((form.stock || 0) <= 0),
+          }"
         >
           <div class="card-visual-row">
             <div class="card-photo-box">
@@ -538,12 +569,22 @@ async function save() {
             <div class="card-header-meta">
               <div class="meta-tags-row">
                 <span v-if="idx === 0" class="tag-primary-badge">⭐ Portada (#1)</span>
-                <span v-if="(form.options[idx]?.stock || 0) <= 0" class="stock-pill-state out">
-                  ✕ Agotado
-                </span>
-                <span v-else class="stock-pill-state in">
-                  ● {{ form.options[idx]?.stock }} disp.
-                </span>
+                <template v-if="form.has_options">
+                  <span v-if="(form.options[idx]?.stock || 0) <= 0" class="stock-pill-state out">
+                    ✕ Agotado
+                  </span>
+                  <span v-else class="stock-pill-state in">
+                    ● {{ form.options[idx]?.stock }} disp.
+                  </span>
+                </template>
+                <template v-else>
+                  <span v-if="(form.stock || 0) <= 0" class="stock-pill-state out">
+                    ✕ Agotado
+                  </span>
+                  <span v-else class="stock-pill-state in">
+                    ● {{ form.stock }} disp. global
+                  </span>
+                </template>
               </div>
               <span class="card-photo-name-preview">
                 {{ form.options[idx]?.name || `Opción ${idx + 1}` }}
@@ -586,7 +627,7 @@ async function save() {
 
           <div class="card-inputs-area">
             <div class="input-group">
-              <label class="input-label">Nombre de la opción / tono:</label>
+              <label class="input-label">Nombre de la opción / foto:</label>
               <input
                 v-if="form.options[idx]"
                 v-model="form.options[idx].name"
@@ -596,7 +637,8 @@ async function save() {
               />
             </div>
 
-            <div class="input-group">
+            <!-- Modo Múltiple: Control de stock independiente por foto -->
+            <div v-if="form.has_options" class="input-group">
               <div class="stock-label-bar">
                 <label class="input-label">Stock de esta foto:</label>
                 <div class="quick-stock-actions">
@@ -653,6 +695,14 @@ async function save() {
                   <AppIcon name="plus" :size="14" />
                 </button>
               </div>
+            </div>
+
+            <!-- Modo Individual: Aviso de stock global compartido -->
+            <div v-else class="individual-stock-banner">
+              <span class="stock-banner-icon">📦</span>
+              <span class="stock-banner-text">
+                Comparte el stock general del producto (<strong>{{ form.stock || 0 }} disp.</strong>)
+              </span>
             </div>
           </div>
         </div>
@@ -1110,6 +1160,26 @@ async function save() {
 .variant-input:focus {
   border-color: #111111 !important;
   box-shadow: 0 0 0 3px rgba(0, 0, 0, 0.06) !important;
+}
+
+.individual-stock-banner {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: #fdf2f5;
+  border: 1px solid #fce7ef;
+  border-radius: 8px;
+  padding: 10px 12px;
+  font-size: 12px;
+  color: #831843;
+}
+
+.stock-banner-icon {
+  font-size: 15px;
+}
+
+.stock-banner-text strong {
+  color: #9f1239;
 }
 
 .stock-label-bar {

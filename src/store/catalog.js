@@ -21,13 +21,48 @@ function mapProduct(p, categoriesMap = {}) {
   const discountAmount =
     discount > 0 ? Number((price - effectivePrice).toFixed(2)) : 0
 
-  const { hasOptions, options } = parseProductOptions(p.image)
+  const { hasOptions, isMultiple: parsedIsMultiple, options: rawOptions } = parseProductOptions(p.image)
   const images = parseProductImages(p.image)
   const mainImage = images[0] || (typeof p.image === 'string' && !p.image.startsWith('[') && !p.image.startsWith('{') ? p.image : '')
 
-  const computedStock = hasOptions && options.length > 0
-    ? options.reduce((sum, opt) => sum + (Number(opt.stock) || 0), 0)
-    : (p.stock ?? 0)
+  const isProdMultiple = Boolean(parsedIsMultiple && rawOptions.length > 0)
+  const globalStock = Number(p.stock) ?? 0
+
+  const computedStock = isProdMultiple
+    ? rawOptions.reduce((sum, opt) => sum + (Number(opt.stock) || 0), 0)
+    : globalStock
+
+  // Construir opciones finales para la tienda
+  let options = []
+  if (isProdMultiple) {
+    options = rawOptions.map((opt, i) => ({
+      id: opt.id || `opt_${i + 1}`,
+      name: opt.name || `Opción ${i + 1}`,
+      image: opt.image || mainImage,
+      stock: Number(opt.stock) || 0,
+      isMultiple: true,
+    }))
+  } else if (images.length > 1) {
+    // Individual con múltiples fotos: todas comparten el stock global
+    options = images.map((img, i) => {
+      const saved = rawOptions[i]
+      return {
+        id: saved?.id || `opt_${i + 1}`,
+        name: saved?.name || `Opción ${i + 1}`,
+        image: img || mainImage,
+        stock: computedStock,
+        isMultiple: false,
+      }
+    })
+  } else if (images.length === 1) {
+    options = [{
+      id: 'opt_1',
+      name: 'Opción 1',
+      image: mainImage,
+      stock: computedStock,
+      isMultiple: false,
+    }]
+  }
 
   return {
     id: p.id,
@@ -43,13 +78,9 @@ function mapProduct(p, categoriesMap = {}) {
     discountAmount,
     discountSource,
     stock: computedStock,
-    hasOptions,
-    options: options.map((opt, i) => ({
-      id: opt.id || `opt_${i + 1}`,
-      name: opt.name || `Opción ${i + 1}`,
-      image: opt.image || mainImage,
-      stock: Number(opt.stock) || 0,
-    })),
+    hasOptions: isProdMultiple,
+    isMultiple: isProdMultiple,
+    options,
     image: mainImage,
     images: images.length ? images : (mainImage ? [mainImage] : []),
     pos: 'center',

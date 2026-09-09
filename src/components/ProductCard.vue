@@ -1,5 +1,5 @@
 <script setup>
-import { computed } from 'vue'
+import { ref, computed } from 'vue'
 import { useCartStore } from '@/store/cart'
 import { useFavoritesStore } from '@/store/favorites'
 import { useSettingsStore } from '@/store/settings'
@@ -23,6 +23,47 @@ const remainingStock = computed(() => {
   const inCart = (cart.items || []).find((it) => it.id === props.product.id)?.qty || 0
   return Math.max(0, (Number(props.product.stock) || 0) - inCart)
 })
+
+// Modal de selección rápida para productos múltiples
+const showModal = ref(false)
+const selectedModalOpt = ref(null)
+const modalQty = ref(1)
+
+function openModal() {
+  if (remainingStock.value <= 0) return
+  const firstWithStock = props.product.options?.find((o) => (Number(o.stock) || 0) > 0)
+  selectedModalOpt.value = firstWithStock || props.product.options?.[0] || null
+  modalQty.value = 1
+  showModal.value = true
+}
+
+function closeModal() {
+  showModal.value = false
+}
+
+const modalOptStock = computed(() => {
+  if (!selectedModalOpt.value) return 0
+  const optKey = `${props.product.id}__opt_${selectedModalOpt.value.id}`
+  const inCart = (cart.items || []).find((it) => (it.itemKey || it.id) === optKey)?.qty || 0
+  return Math.max(0, (Number(selectedModalOpt.value.stock) || 0) - inCart)
+})
+
+function addFromModal() {
+  if (!selectedModalOpt.value || modalOptStock.value <= 0) return
+  cart.add(props.product, modalQty.value, selectedModalOpt.value)
+  closeModal()
+}
+
+function handleAddIndividual() {
+  if (remainingStock.value <= 0) return
+  // Si no entra al producto y le da añadir, se añade por defecto la primera opción
+  const firstOpt = props.product.options && props.product.options.length
+    ? props.product.options[0]
+    : (props.product.images && props.product.images.length > 1
+        ? { id: 'opt_1', name: 'Opción 1', image: props.product.images[0], stock: props.product.stock }
+        : null)
+  cart.add(props.product, 1, firstOpt)
+}
 </script>
 
 <template>
@@ -51,7 +92,7 @@ const remainingStock = computed(() => {
       <div class="card-badges">
         <span v-if="product.discount" class="tag tag-discount">-{{ product.discount }}% OFF</span>
         <span v-if="product.isNew" class="tag tag-new">Nuevo</span>
-        <span v-if="product.hasOptions && product.options && product.options.length" class="tag tag-variants">
+        <span v-if="product.isMultiple && product.options && product.options.length" class="tag tag-variants">
           {{ product.options.length }} opciones
         </span>
         <span v-if="product.stock === 0" class="tag tag-soldout">Agotado</span>
@@ -91,25 +132,152 @@ const remainingStock = computed(() => {
         <span class="stock-simple">Stock: {{ remainingStock }}</span>
       </div>
 
+      <!-- Botón para Producto Múltiple (abre Popup de selección rápida) -->
       <button
-        v-if="product.hasOptions && product.options && product.options.length"
+        v-if="product.isMultiple && product.options && product.options.length"
         class="btn add-btn btn-choose-opt"
         :disabled="remainingStock <= 0"
-        @click="$router.push(`/producto/${product.id}`)"
+        @click="openModal"
       >
-        <AppIcon name="eye" :size="16" />
-        {{ remainingStock <= 0 ? 'Agotado' : 'Elegir opción' }}
+        <AppIcon name="bag" :size="16" />
+        {{ remainingStock <= 0 ? 'Agotado' : 'Agregar al carrito' }}
       </button>
+
+      <!-- Botón para Producto Individual (agrega con la primera opción por defecto) -->
       <button
         v-else
         class="btn add-btn"
         :disabled="remainingStock <= 0"
-        @click="cart.add(product)"
+        @click="handleAddIndividual"
       >
         <AppIcon name="bag" :size="16" />
         {{ remainingStock <= 0 ? 'Agotado' : 'Agregar al carrito' }}
       </button>
     </div>
+
+    <!-- Popup / Modal de Selección Rápida para Productos Múltiples -->
+    <Teleport to="body">
+      <Transition name="modal-fade">
+        <div v-if="showModal" class="quick-opt-backdrop" @click.self="closeModal">
+          <div class="quick-opt-modal" role="dialog" aria-modal="true">
+            <div class="quick-modal-head">
+              <div class="quick-head-info">
+                <span class="quick-label">Elegir variante</span>
+                <h4 class="quick-title">{{ product.name }}</h4>
+              </div>
+              <button type="button" class="quick-close-btn" aria-label="Cerrar" @click="closeModal">
+                <AppIcon name="close" :size="18" />
+              </button>
+            </div>
+
+            <div class="quick-modal-body">
+              <!-- Vista previa de la variante seleccionada -->
+              <div class="quick-active-preview">
+                <img
+                  :src="resolveImage(selectedModalOpt?.image || product.image)"
+                  :alt="selectedModalOpt?.name || product.name"
+                  class="quick-preview-img"
+                />
+                <div class="quick-preview-details">
+                  <span class="quick-opt-active-name">{{ selectedModalOpt?.name || 'Selecciona una opción' }}</span>
+                  <div class="quick-price-line">
+                    <strong class="quick-price">{{ formatPrice(product.price) }}</strong>
+                    <span v-if="currency.effectiveRate" class="quick-price-bs">
+                      Bs. {{ currency.formatBsNum(product.price) }}
+                    </span>
+                  </div>
+                  <span
+                    v-if="modalOptStock <= 0"
+                    class="quick-stock-badge out"
+                  >
+                    ✕ Agotado en esta opción
+                  </span>
+                  <span
+                    v-else
+                    class="quick-stock-badge in"
+                  >
+                    ● {{ modalOptStock }} disponibles
+                  </span>
+                </div>
+              </div>
+
+              <!-- Lista de opciones disponibles -->
+              <div class="quick-variants-section">
+                <label class="quick-section-title">Opciones disponibles:</label>
+                <div class="quick-variants-grid">
+                  <button
+                    v-for="opt in product.options"
+                    :key="opt.id"
+                    type="button"
+                    class="quick-variant-btn"
+                    :class="{
+                      active: selectedModalOpt?.id === opt.id,
+                      exhausted: (Number(opt.stock) || 0) <= 0,
+                    }"
+                    @click="selectedModalOpt = opt; modalQty = 1"
+                  >
+                    <div class="quick-thumb-wrap">
+                      <img :src="resolveImage(opt.image)" :alt="opt.name" />
+                      <span v-if="selectedModalOpt?.id === opt.id" class="quick-check-dot">✓</span>
+                    </div>
+                    <span class="quick-opt-name" :title="opt.name">{{ opt.name }}</span>
+                    <span v-if="(Number(opt.stock) || 0) <= 0" class="quick-opt-status out">Agotado</span>
+                    <span v-else class="quick-opt-status in">{{ opt.stock }} disp.</span>
+                  </button>
+                </div>
+              </div>
+
+              <!-- Selector de cantidad -->
+              <div class="quick-qty-section">
+                <label class="quick-section-title">Cantidad:</label>
+                <div class="quick-qty-stepper">
+                  <button
+                    type="button"
+                    class="qty-stepper-btn"
+                    :disabled="modalQty <= 1"
+                    @click="modalQty = Math.max(1, modalQty - 1)"
+                  >
+                    <AppIcon name="minus" :size="14" />
+                  </button>
+                  <span class="qty-stepper-num">{{ modalQty }}</span>
+                  <button
+                    type="button"
+                    class="qty-stepper-btn"
+                    :disabled="modalQty >= modalOptStock"
+                    @click="modalQty++"
+                  >
+                    <AppIcon name="plus" :size="14" />
+                  </button>
+                </div>
+                <div class="quick-subtotal-calc">
+                  <span>Subtotal:</span>
+                  <strong>{{ formatPrice(product.price * modalQty) }}</strong>
+                </div>
+              </div>
+            </div>
+
+            <div class="quick-modal-footer">
+              <button
+                type="button"
+                class="btn-quick-add"
+                :disabled="modalOptStock <= 0"
+                @click="addFromModal"
+              >
+                <AppIcon name="bag" :size="17" />
+                <span>{{ modalOptStock <= 0 ? 'Opción agotada' : 'Agregar al carrito' }}</span>
+              </button>
+              <router-link
+                :to="`/producto/${product.id}`"
+                class="quick-view-more"
+                @click="closeModal"
+              >
+                Ver detalle completo del producto →
+              </router-link>
+            </div>
+          </div>
+        </div>
+      </Transition>
+    </Teleport>
   </article>
 </template>
 
@@ -444,5 +612,364 @@ const remainingStock = computed(() => {
   .add-btn svg {
     display: none;
   }
+}
+
+/* Modal de selección rápida de variantes */
+.quick-opt-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.65);
+  backdrop-filter: blur(4px);
+  z-index: 99999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+}
+
+.quick-opt-modal {
+  background: #ffffff;
+  width: 440px;
+  max-width: 100%;
+  max-height: 88vh;
+  border-radius: 16px;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 20px 45px rgba(0, 0, 0, 0.25);
+  overflow: hidden;
+  animation: popIn 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes popIn {
+  from {
+    opacity: 0;
+    transform: scale(0.95) translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+.modal-fade-enter-active,
+.modal-fade-leave-active {
+  transition: opacity 0.2s ease;
+}
+.modal-fade-enter-from,
+.modal-fade-leave-to {
+  opacity: 0;
+}
+
+.quick-modal-head {
+  padding: 14px 18px;
+  background: #111111;
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.quick-label {
+  font-size: 10.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #f472b6;
+  font-weight: 700;
+  display: block;
+}
+
+.quick-title {
+  margin: 2px 0 0;
+  font-size: 14px;
+  font-weight: 700;
+  color: #ffffff;
+  line-height: 1.25;
+}
+
+.quick-close-btn {
+  background: transparent;
+  border: none;
+  color: #ffffff;
+  cursor: pointer;
+  padding: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0.85;
+  transition: opacity 0.2s;
+}
+.quick-close-btn:hover {
+  opacity: 1;
+}
+
+.quick-modal-body {
+  padding: 16px 18px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.quick-active-preview {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: #fdf2f5;
+  border: 1px solid #fce7ef;
+  padding: 10px 12px;
+  border-radius: 10px;
+}
+
+.quick-preview-img {
+  width: 54px;
+  height: 54px;
+  border-radius: 8px;
+  object-fit: cover;
+  background: #eee;
+  flex-shrink: 0;
+}
+
+.quick-preview-details {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.quick-opt-active-name {
+  font-size: 13.5px;
+  font-weight: 700;
+  color: #111827;
+}
+
+.quick-price-line {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+}
+
+.quick-price {
+  font-size: 15px;
+  font-weight: 800;
+  color: #e11d48;
+}
+
+.quick-price-bs {
+  font-size: 11.5px;
+  color: #64748b;
+  font-weight: 600;
+}
+
+.quick-stock-badge {
+  font-size: 11px;
+  font-weight: 700;
+  display: inline-block;
+  margin-top: 2px;
+}
+.quick-stock-badge.in {
+  color: #16a34a;
+}
+.quick-stock-badge.out {
+  color: #dc2626;
+}
+
+.quick-section-title {
+  font-size: 11.5px;
+  font-weight: 700;
+  color: #4b5563;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  display: block;
+  margin-bottom: 6px;
+}
+
+.quick-variants-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(95px, 1fr));
+  gap: 8px;
+}
+
+.quick-variant-btn {
+  background: #ffffff;
+  border: 1.5px solid #e5e7eb;
+  border-radius: 10px;
+  padding: 8px 6px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  text-align: center;
+}
+
+.quick-variant-btn:hover {
+  border-color: #111111;
+  background: #fafafa;
+}
+
+.quick-variant-btn.active {
+  border-color: #111111;
+  background: #fff0f4;
+  box-shadow: 0 0 0 1.5px #111111;
+}
+
+.quick-variant-btn.exhausted {
+  opacity: 0.45;
+  filter: grayscale(80%);
+  cursor: not-allowed;
+}
+
+.quick-thumb-wrap {
+  position: relative;
+  width: 40px;
+  height: 40px;
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.quick-thumb-wrap img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.quick-check-dot {
+  position: absolute;
+  top: 1px;
+  right: 1px;
+  background: #111111;
+  color: #ffffff;
+  font-size: 8.5px;
+  font-weight: 900;
+  width: 13px;
+  height: 13px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.quick-opt-name {
+  font-size: 11.5px;
+  font-weight: 700;
+  color: #111827;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.quick-opt-status {
+  font-size: 10px;
+  font-weight: 700;
+}
+.quick-opt-status.in {
+  color: #d97706;
+}
+.quick-opt-status.out {
+  color: #ef4444;
+}
+
+.quick-qty-section {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-top: 6px;
+  border-top: 1px dashed #e5e7eb;
+}
+
+.quick-qty-stepper {
+  display: flex;
+  align-items: center;
+  border: 1.5px solid #d1d5db;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.qty-stepper-btn {
+  background: #f3f4f6;
+  border: none;
+  width: 30px;
+  height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: #374151;
+  transition: background 0.15s;
+}
+.qty-stepper-btn:hover:not(:disabled) {
+  background: #e5e7eb;
+}
+.qty-stepper-btn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.qty-stepper-num {
+  width: 32px;
+  text-align: center;
+  font-size: 13.5px;
+  font-weight: 700;
+  color: #111827;
+}
+
+.quick-subtotal-calc {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  font-size: 12.5px;
+  color: #6b7280;
+}
+.quick-subtotal-calc strong {
+  font-size: 15px;
+  color: #111827;
+}
+
+.quick-modal-footer {
+  padding: 12px 18px 16px;
+  background: #f9fafb;
+  border-top: 1px solid #f3f4f6;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.btn-quick-add {
+  width: 100%;
+  padding: 11px;
+  background: #111111;
+  color: #ffffff;
+  border: none;
+  border-radius: 10px;
+  font-size: 13.5px;
+  font-weight: 700;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  transition: all 0.15s ease;
+}
+.btn-quick-add:hover:not(:disabled) {
+  background: var(--rose-600);
+  transform: translateY(-1px);
+}
+.btn-quick-add:disabled {
+  background: #9ca3af;
+  cursor: not-allowed;
+}
+
+.quick-view-more {
+  text-align: center;
+  font-size: 12px;
+  color: #6b7280;
+  text-decoration: underline;
+  cursor: pointer;
+  transition: color 0.15s;
+}
+.quick-view-more:hover {
+  color: #111827;
 }
 </style>

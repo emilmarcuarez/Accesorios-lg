@@ -1,45 +1,46 @@
 /**
  * Extrae las opciones / variantes de un producto si existen.
- * Retorna { hasOptions: boolean, options: Array<{ id, name, image, stock }> }
+ * Retorna { hasOptions: boolean, isMultiple: boolean, options: Array<{ id, name, image, stock }> }
  */
 export function parseProductOptions(val) {
-  if (!val) return { hasOptions: false, options: [] }
+  if (!val) return { hasOptions: false, isMultiple: false, options: [] }
   if (typeof val === 'object' && val !== null) {
-    if (val.has_options || val.hasOptions) {
-      const opts = Array.isArray(val.options) ? val.options : []
-      return {
-        hasOptions: true,
-        options: opts.map((opt, i) => ({
-          id: opt.id || `opt_${i + 1}`,
-          name: opt.name || `Opción ${i + 1}`,
-          image: opt.image || '',
-          stock: Number(opt.stock) ?? 0,
-        })),
-      }
+    const isMult = Boolean(val.is_multiple ?? (val.has_options || val.hasOptions))
+    const opts = Array.isArray(val.options) ? val.options : []
+    return {
+      hasOptions: isMult,
+      isMultiple: isMult,
+      options: opts.map((opt, i) => ({
+        id: opt.id || `opt_${i + 1}`,
+        name: opt.name || `Opción ${i + 1}`,
+        image: opt.image || '',
+        stock: opt.stock !== null && opt.stock !== undefined ? Number(opt.stock) : null,
+      })),
     }
-    return { hasOptions: false, options: [] }
   }
   if (typeof val === 'string') {
     const trimmed = val.trim()
     if (trimmed.startsWith('{') && trimmed.endsWith('}')) {
       try {
         const parsed = JSON.parse(trimmed)
-        if (parsed && (parsed.has_options || parsed.hasOptions)) {
+        if (parsed && typeof parsed === 'object') {
+          const isMult = Boolean(parsed.is_multiple ?? (parsed.has_options || parsed.hasOptions))
           const opts = Array.isArray(parsed.options) ? parsed.options : []
           return {
-            hasOptions: true,
+            hasOptions: isMult,
+            isMultiple: isMult,
             options: opts.map((opt, i) => ({
               id: opt.id || `opt_${i + 1}`,
               name: opt.name || `Opción ${i + 1}`,
               image: opt.image || '',
-              stock: Number(opt.stock) ?? 0,
+              stock: opt.stock !== null && opt.stock !== undefined ? Number(opt.stock) : null,
             })),
           }
         }
       } catch {}
     }
   }
-  return { hasOptions: false, options: [] }
+  return { hasOptions: false, isMultiple: false, options: [] }
 }
 
 /**
