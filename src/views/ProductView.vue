@@ -41,6 +41,14 @@ const currentImage = computed(() => {
 
 function selectImage(idx) {
   activeImageIndex.value = idx
+  if (product.value?.hasOptions && product.value.options.length) {
+    const targetImg = productImages.value[idx]
+    const matched = product.value.options.find((o) => o.image === targetImg)
+    if (matched) {
+      selectedOption.value = matched
+      qty.value = 1
+    }
+  }
   resetAutoSlide()
 }
 
@@ -220,12 +228,44 @@ function onKeydown(e) {
   }
 }
 
-const inStock = computed(() => (product.value?.stock ?? 0) > 0)
+const selectedOption = ref(null)
+
+function initSelectedOption() {
+  if (product.value?.hasOptions && product.value.options.length > 0) {
+    const firstWithStock = product.value.options.find((o) => (Number(o.stock) || 0) > 0)
+    selectedOption.value = firstWithStock || product.value.options[0]
+    const idx = productImages.value.findIndex((img) => img === selectedOption.value.image)
+    if (idx !== -1) {
+      activeImageIndex.value = idx
+    }
+  } else {
+    selectedOption.value = null
+  }
+}
+
+function selectOption(opt) {
+  selectedOption.value = opt
+  qty.value = 1
+  const idx = productImages.value.findIndex((img) => img === opt.image)
+  if (idx !== -1) {
+    activeImageIndex.value = idx
+    resetAutoSlide()
+  }
+}
+
 const remainingStock = computed(() => {
   if (!product.value) return 0
-  const inCart = (cart.items || []).find((it) => it.id === product.value.id)?.qty || 0
+  if (product.value.hasOptions && selectedOption.value) {
+    const optStock = Number(selectedOption.value.stock) || 0
+    const optKey = `${product.value.id}__opt_${selectedOption.value.id}`
+    const inCart = (cart.items || []).find((it) => (it.itemKey || it.id) === optKey)?.qty || 0
+    return Math.max(0, optStock - inCart)
+  }
+  const inCart = (cart.items || []).filter((it) => it.id === product.value.id).reduce((s, it) => s + it.qty, 0)
   return Math.max(0, (Number(product.value.stock) || 0) - inCart)
 })
+
+const inStock = computed(() => remainingStock.value > 0)
 const maxQty = computed(() => Math.max(1, remainingStock.value || 1))
 
 function increment() {
@@ -237,13 +277,13 @@ function decrement() {
 }
 
 function addToCart() {
-  if (!product.value || !inStock.value) return
-  cart.add(product.value)
-  for (let i = 1; i < qty.value; i++) cart.increase(product.value.id)
+  if (!product.value || remainingStock.value <= 0) return
+  cart.add(product.value, qty.value, selectedOption.value)
 }
 
 function buyNow() {
-  addToCart()
+  if (!product.value || remainingStock.value <= 0) return
+  cart.add(product.value, qty.value, selectedOption.value)
   cart.checkout()
 }
 
@@ -252,8 +292,17 @@ watch(
   () => {
     qty.value = 1
     activeImageIndex.value = 0
+    initSelectedOption()
     resetAutoSlide()
   },
+)
+
+watch(
+  () => product.value,
+  () => {
+    initSelectedOption()
+  },
+  { immediate: true },
 )
 
 watch(
@@ -422,6 +471,49 @@ onUnmounted(() => {
             {{ product.description }}
           </p>
 
+          <!-- Selector de Variantes / Opciones por foto (estilo Reyes Boutique) -->
+          <div v-if="product.hasOptions && product.options.length" class="variant-box">
+            <div class="variant-top-row">
+              <div class="variant-label-group">
+                <span class="variant-heading">Variante</span>
+                <span v-if="selectedOption" class="variant-active-pill">
+                  {{ selectedOption.name }}
+                </span>
+              </div>
+              <span class="variant-total-count">{{ product.options.length }} opciones</span>
+            </div>
+
+            <div class="variant-grid">
+              <button
+                v-for="opt in product.options"
+                :key="opt.id"
+                type="button"
+                class="variant-card"
+                :class="{
+                  'active': selectedOption?.id === opt.id,
+                  'is-exhausted': (Number(opt.stock) || 0) <= 0,
+                }"
+                :aria-label="`Elegir ${opt.name}`"
+                @click="selectOption(opt)"
+              >
+                <div class="variant-card-media">
+                  <img :src="resolveImage(opt.image)" :alt="opt.name" />
+                  <!-- Badge circular negro con check blanco al estar seleccionada -->
+                  <span v-if="selectedOption?.id === opt.id" class="variant-check-pill">
+                    <svg width="10" height="8" viewBox="0 0 10 8" fill="none">
+                      <path d="M1 4L3.5 6.5L9 1" stroke="white" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                  </span>
+                </div>
+                <div class="variant-card-footer">
+                  <span class="variant-card-name" :title="opt.name">{{ opt.name }}</span>
+                  <span v-if="(Number(opt.stock) || 0) <= 0" class="variant-card-status out">Agotado</span>
+                  <span v-else-if="Number(opt.stock) <= 3" class="variant-card-status low">{{ opt.stock }} disp.</span>
+                </div>
+              </button>
+            </div>
+          </div>
+
           <div class="qty-row">
             <div class="qty">
               <button class="qty-btn" aria-label="Menos" :disabled="qty <= 1" @click="decrement">
@@ -440,9 +532,21 @@ onUnmounted(() => {
             </div>
           </div>
 
-          <p class="avail">
-            Stock: {{ remainingStock }}
-          </p>
+          <div class="avail-row">
+            <template v-if="product.hasOptions && selectedOption">
+              <span v-if="remainingStock > 0" class="avail">
+                Stock disponible de <strong>{{ selectedOption.name }}</strong>: {{ remainingStock }}
+              </span>
+              <span v-else class="avail out">
+                La opción <strong>{{ selectedOption.name }}</strong> está agotada temporalmente.
+              </span>
+            </template>
+            <template v-else>
+              <span class="avail" :class="{ out: remainingStock <= 0 }">
+                Stock: {{ remainingStock }}
+              </span>
+            </template>
+          </div>
 
           <div class="buy-row">
             <button class="btn btn-primary" :disabled="remainingStock <= 0" @click="addToCart">
@@ -936,10 +1040,193 @@ onUnmounted(() => {
 .desc {
   color: var(--ink-500);
   font-size: 15px;
-  margin-bottom: 26px;
+  margin-bottom: 22px;
   max-width: 480px;
   line-height: 1.6;
   white-space: pre-line;
+}
+
+/* Selector de Variantes (Diseño tipo Reyes Boutique) */
+.variant-box {
+  margin: 18px 0 24px;
+  padding: 16px 18px;
+  background: #fdfbfb;
+  border: 1px solid #f1e2e6;
+  border-radius: 14px;
+}
+
+.variant-top-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.variant-label-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.variant-heading {
+  font-family: var(--font-body);
+  font-size: 14.5px;
+  font-weight: 700;
+  color: #111111;
+  letter-spacing: -0.01em;
+}
+
+.variant-active-pill {
+  font-size: 12px;
+  font-weight: 700;
+  color: #c92a54;
+  background: #fff0f3;
+  padding: 2px 8px;
+  border-radius: 6px;
+  border: 1px solid #fed7e2;
+}
+
+.variant-total-count {
+  font-size: 12px;
+  color: #888888;
+  font-weight: 500;
+}
+
+.variant-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px;
+}
+
+.variant-card {
+  position: relative;
+  background: #ffffff;
+  border: 1.5px solid #e0e0e0;
+  border-radius: 10px;
+  overflow: hidden;
+  cursor: pointer;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  transition: all 0.2s cubic-bezier(0.2, 0.8, 0.2, 1);
+  text-align: left;
+}
+
+.variant-card:hover {
+  border-color: #111111;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+}
+
+.variant-card.active {
+  border-color: #111111;
+  border-width: 2.5px;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.16);
+}
+
+.variant-card.is-exhausted {
+  opacity: 0.7;
+}
+
+.variant-card-media {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 1;
+  overflow: hidden;
+  background: #f4f4f4;
+}
+
+.variant-card-media img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 0.3s ease;
+}
+
+.variant-card:hover .variant-card-media img {
+  transform: scale(1.05);
+}
+
+.variant-card.is-exhausted .variant-card-media img {
+  filter: grayscale(100%);
+  opacity: 0.6;
+}
+
+/* Badge circular negro con check blanco (exacto al screenshot) */
+.variant-check-pill {
+  position: absolute;
+  bottom: 5px;
+  left: 5px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #111111;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.3);
+  z-index: 2;
+}
+
+.variant-card-footer {
+  padding: 6px 4px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1px;
+  background: #ffffff;
+  transition: background 0.2s ease, color 0.2s ease;
+}
+
+.variant-card.active .variant-card-footer {
+  background: #111111;
+  color: #ffffff;
+}
+
+.variant-card-name {
+  font-family: var(--font-body);
+  font-size: 10.5px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: inherit;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+  text-align: center;
+}
+
+.variant-card-status {
+  font-size: 9px;
+  font-weight: 700;
+  line-height: 1.1;
+}
+
+.variant-card-status.out {
+  color: #dc2626;
+}
+
+.variant-card.active .variant-card-status.out {
+  color: #fca5a5;
+}
+
+.variant-card-status.low {
+  color: #d97706;
+}
+
+.variant-card.active .variant-card-status.low {
+  color: #fde68a;
+}
+
+.avail-row {
+  margin-bottom: 20px;
+}
+
+.avail.out {
+  color: #dc2626;
+  font-weight: 600;
 }
 
 .qty-row {
@@ -1261,6 +1548,16 @@ onUnmounted(() => {
   }
   .buy-row .btn {
     width: 100%;
+  }
+  .variant-box {
+    padding: 14px 12px;
+  }
+  .variant-grid {
+    grid-template-columns: repeat(4, 1fr);
+    gap: 8px;
+  }
+  .variant-card-name {
+    font-size: 9px;
   }
 }
 </style>

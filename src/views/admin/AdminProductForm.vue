@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import AppIcon from '@/components/AppIcon.vue'
 import {
@@ -9,7 +9,7 @@ import {
   uploadImage,
   listProducts,
 } from '@/lib/db'
-import { resolveImage, parseProductImages } from '@/utils/image'
+import { resolveImage, parseProductImages, parseProductOptions } from '@/utils/image'
 import { useCatalogStore } from '@/store/catalog'
 
 const route = useRoute()
@@ -32,6 +32,8 @@ function emptyForm() {
     old_price: 0,
     discount: 0,
     stock: 0,
+    has_options: false,
+    options: [],
     images: [],
     featured: false,
     is_new: false,
@@ -40,6 +42,11 @@ function emptyForm() {
 
 const title = computed(() => (isEdit.value ? 'Editar producto' : 'Nuevo producto'))
 
+const totalOptionsStock = computed(() => {
+  if (!form.value.options || !form.value.options.length) return 0
+  return form.value.options.reduce((sum, opt) => sum + (Number(opt.stock) || 0), 0)
+})
+
 onMounted(async () => {
   const res = await listCategories()
   categories.value = res.data || []
@@ -47,6 +54,9 @@ onMounted(async () => {
     const prod = await listProducts()
     const p = (prod.data || []).find((x) => x.id === Number(route.params.id))
     if (p) {
+      const { hasOptions, options } = parseProductOptions(p.image)
+      const imgs = parseProductImages(p.image)
+
       form.value = {
         name: p.name,
         description: p.description || '',
@@ -55,13 +65,47 @@ onMounted(async () => {
         old_price: p.old_price || 0,
         discount: p.discount || 0,
         stock: p.stock ?? 0,
-        images: parseProductImages(p.image),
+        has_options: hasOptions,
+        options: hasOptions && options.length
+          ? options.map((opt, i) => ({
+              id: opt.id || `opt_${Date.now()}_${i}`,
+              name: opt.name || `Opción ${i + 1}`,
+              image: opt.image || imgs[i] || '',
+              stock: Number(opt.stock) || 0,
+            }))
+          : imgs.map((imgUrl, i) => ({
+              id: `opt_${Date.now()}_${i}`,
+              name: `Opción ${i + 1}`,
+              image: imgUrl,
+              stock: 1,
+            })),
+        images: imgs,
         featured: p.featured,
         is_new: p.is_new,
       }
     }
   }
 })
+
+// Sincronizar options cuando se activa has_options
+watch(
+  () => form.value.has_options,
+  (val) => {
+    if (val && form.value.images.length) {
+      if (!form.value.options || form.value.options.length !== form.value.images.length) {
+        form.value.options = form.value.images.map((imgUrl, idx) => {
+          const prev = form.value.options && form.value.options[idx]
+          return {
+            id: prev?.id || `opt_${Date.now()}_${idx}`,
+            name: prev?.name || `Opción ${idx + 1}`,
+            image: imgUrl,
+            stock: prev?.stock !== undefined ? Number(prev.stock) : Math.max(1, Math.floor((form.value.stock || 1) / form.value.images.length)),
+          }
+        })
+      }
+    }
+  },
+)
 
 async function onFiles(event) {
   const files = Array.from(event.target.files || [])
@@ -89,6 +133,12 @@ async function onFiles(event) {
     }
 
     form.value.images.push(res.url)
+    form.value.options.push({
+      id: `opt_${Date.now()}_${form.value.images.length}`,
+      name: `Opción ${form.value.images.length}`,
+      image: res.url,
+      stock: 1,
+    })
   }
 
   uploading.value = false
@@ -98,24 +148,54 @@ async function onFiles(event) {
 
 function removeImageAt(idx) {
   form.value.images.splice(idx, 1)
+  if (form.value.options && form.value.options.length > idx) {
+    form.value.options.splice(idx, 1)
+  }
 }
 
 function setAsMain(idx) {
   if (idx === 0) return
-  const item = form.value.images.splice(idx, 1)[0]
-  form.value.images.unshift(item)
+  moveImage(idx, 0)
 }
 
 function moveImage(fromIdx, toIdx) {
   if (toIdx < 0 || toIdx >= form.value.images.length) return
   const item = form.value.images.splice(fromIdx, 1)[0]
   form.value.images.splice(toIdx, 0, item)
+
+  if (form.value.options && form.value.options.length) {
+    const opt = form.value.options.splice(fromIdx, 1)[0]
+    form.value.options.splice(toIdx, 0, opt)
+  }
 }
 
 async function save() {
   saving.value = true
   const imgs = (form.value.images || []).filter(Boolean)
-  const imageValue = imgs.length > 1 ? JSON.stringify(imgs) : (imgs[0] || null)
+  let imageValue = null
+  let finalStock = Number(form.value.stock) || 0
+
+  if (form.value.has_options && imgs.length > 0) {
+    // Sincronizar y limpiar opciones
+    const cleanOptions = imgs.map((url, idx) => {
+      const opt = form.value.options[idx] || {}
+      return {
+        id: opt.id || `opt_${idx + 1}`,
+        name: opt.name ? opt.name.trim() : `Opción ${idx + 1}`,
+        image: url,
+        stock: Number(opt.stock) >= 0 ? Number(opt.stock) : 0,
+      }
+    })
+    finalStock = cleanOptions.reduce((s, o) => s + (Number(o.stock) || 0), 0)
+    imageValue = JSON.stringify({
+      has_options: true,
+      options: cleanOptions,
+      images: imgs,
+    })
+  } else {
+    // Producto simple / solo (puede tener múltiples fotos en galería pero sin selección)
+    imageValue = imgs.length > 1 ? JSON.stringify(imgs) : (imgs[0] || null)
+  }
 
   const payload = {
     name: form.value.name,
@@ -124,7 +204,7 @@ async function save() {
     price: form.value.price,
     old_price: form.value.old_price || 0,
     discount: form.value.discount || 0,
-    stock: form.value.stock ?? 0,
+    stock: finalStock,
     image: imageValue,
     featured: form.value.featured,
     is_new: form.value.is_new,
@@ -146,6 +226,43 @@ async function save() {
         <AppIcon name="chevronLeft" :size="18" />
       </button>
       <h2 class="form-page-title">{{ title }}</h2>
+    </div>
+
+    <!-- Modalidad de producto: Simple vs Con Selección de Fotos / Opciones -->
+    <div class="product-mode-box">
+      <div class="mode-header">
+        <span class="mode-title">✨ Modalidad del producto</span>
+        <span class="mode-badge" :class="{ 'is-variants': form.has_options }">
+          {{ form.has_options ? 'Con selección de variantes por foto' : 'Producto individual estándar' }}
+        </span>
+      </div>
+      <div class="mode-cards">
+        <label class="mode-card" :class="{ active: !form.has_options }">
+          <input v-model="form.has_options" type="radio" :value="false" />
+          <div class="mode-card-body">
+            <div class="mode-card-title">
+              <span class="mode-radio-dot"></span>
+              <strong>Producto Individual / Solo</strong>
+            </div>
+            <p class="mode-card-desc">
+              Tiene un stock único general. Puedes montarle varias fotos para que el cliente las vea en la galería sin que sean de selección obligatoria.
+            </p>
+          </div>
+        </label>
+
+        <label class="mode-card" :class="{ active: form.has_options }">
+          <input v-model="form.has_options" type="radio" :value="true" />
+          <div class="mode-card-body">
+            <div class="mode-card-title">
+              <span class="mode-radio-dot"></span>
+              <strong>Producto con Selección de Fotos (Variantes)</strong>
+            </div>
+            <p class="mode-card-desc">
+              Cada foto representa una opción a elegir (tono, color, modelo). Podrás asignarle su propio nombre y cantidad disponible a cada foto (ej: 2 de la opción A, 3 de la B).
+            </p>
+          </div>
+        </label>
+      </div>
     </div>
 
     <div class="form-grid">
@@ -268,8 +385,61 @@ async function save() {
         </div>
 
         <p class="hint">
-          Sube todas las fotos que desees. La foto #1 será la portada y en la tienda los clientes podrán deslizarlas o elegir entre las miniaturas.
+          Sube todas las fotos que desees. La foto #1 será la portada principal del producto.
         </p>
+
+        <!-- Configuración de Opciones / Variantes individuales por foto -->
+        <div v-if="form.has_options && form.images.length" class="options-mgr-card">
+          <div class="options-mgr-head">
+            <div>
+              <h3 class="options-mgr-title">Stock y nombre de cada opción</h3>
+              <p class="options-mgr-sub">Asigna el nombre (ej. tono, color) y la cantidad que tienes de cada foto:</p>
+            </div>
+            <div class="options-total-pill">
+              Stock total: <strong>{{ totalOptionsStock }}</strong>
+            </div>
+          </div>
+
+          <div class="options-mgr-list">
+            <div
+              v-for="(imgUrl, idx) in form.images"
+              :key="idx"
+              class="opt-item"
+              :class="{ 'opt-zero': (form.options[idx]?.stock || 0) <= 0 }"
+            >
+              <div class="opt-preview">
+                <img :src="resolveImage(imgUrl)" :alt="`Foto ${idx + 1}`" />
+                <span class="opt-badge-idx">#{{ idx + 1 }}</span>
+              </div>
+              <div class="opt-inputs">
+                <div class="opt-field-group">
+                  <label class="opt-label">Nombre / Tono / Modelo:</label>
+                  <input
+                    v-if="form.options[idx]"
+                    v-model="form.options[idx].name"
+                    type="text"
+                    class="opt-input"
+                    :placeholder="`Ej: Tono ${idx + 1}`"
+                  />
+                </div>
+                <div class="opt-field-group opt-stock-group">
+                  <label class="opt-label">Stock disponible:</label>
+                  <div class="opt-stock-wrap">
+                    <input
+                      v-if="form.options[idx]"
+                      v-model.number="form.options[idx].stock"
+                      type="number"
+                      min="0"
+                      class="opt-input opt-stock-input"
+                    />
+                    <span v-if="(form.options[idx]?.stock || 0) <= 0" class="stock-state out">Agotado</span>
+                    <span v-else class="stock-state in">{{ form.options[idx]?.stock }} disp.</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
 
       <!-- Columna de Datos del Producto -->
@@ -317,9 +487,17 @@ async function save() {
           <span class="calc-save">(Ahorro: ${{ (form.price * (form.discount / 100)).toFixed(2) }})</span>
         </div>
 
+        <!-- Campo Stock: Automático si tiene opciones o Manual si es simple -->
         <div class="field">
-          <label>Stock</label>
-          <input v-model.number="form.stock" type="number" />
+          <div class="label-with-hint">
+            <label>Stock</label>
+            <span v-if="form.has_options" class="hint-pill">⚡ Suma automática de opciones</span>
+          </div>
+          <div v-if="form.has_options" class="stock-auto-box">
+            <div class="stock-auto-value">{{ totalOptionsStock }} unidades</div>
+            <span class="stock-auto-note">Calculado automáticamente con la suma del stock individual de cada foto</span>
+          </div>
+          <input v-else v-model.number="form.stock" type="number" min="0" placeholder="0" />
         </div>
 
         <div class="checks">
@@ -356,7 +534,7 @@ async function save() {
   display: flex;
   align-items: center;
   gap: 14px;
-  margin-bottom: 26px;
+  margin-bottom: 22px;
 }
 
 .form-page-title {
@@ -365,9 +543,117 @@ async function save() {
   color: var(--ink-900);
 }
 
+/* Modalidad de Producto Switcher Box */
+.product-mode-box {
+  background: #fdfbfb;
+  border: 1.5px solid #f1e2e6;
+  border-radius: 14px;
+  padding: 18px 22px;
+  margin-bottom: 28px;
+}
+
+.mode-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 14px;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.mode-title {
+  font-family: var(--font-body);
+  font-size: 14px;
+  font-weight: 700;
+  color: #111111;
+  letter-spacing: 0.02em;
+}
+
+.mode-badge {
+  font-size: 11.5px;
+  font-weight: 700;
+  padding: 3px 10px;
+  border-radius: 999px;
+  background: #f0f0f0;
+  color: #555555;
+  border: 1px solid #dcdcdc;
+}
+
+.mode-badge.is-variants {
+  background: #fff0f3;
+  color: #c92a54;
+  border-color: #fccfd8;
+}
+
+.mode-cards {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+.mode-card {
+  position: relative;
+  display: flex;
+  align-items: flex-start;
+  padding: 14px 16px;
+  border-radius: 10px;
+  background: #ffffff;
+  border: 1.5px solid #e8e8e8;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.mode-card input[type='radio'] {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.mode-card.active {
+  border-color: #111111;
+  background: #ffffff;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.07);
+}
+
+.mode-card.active .mode-radio-dot {
+  border-color: #111111;
+  background: #111111;
+  box-shadow: inset 0 0 0 3px #ffffff;
+}
+
+.mode-card-body {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.mode-card-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13.5px;
+  color: #111111;
+}
+
+.mode-radio-dot {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  border: 2px solid #bbb;
+  flex-shrink: 0;
+  transition: all 0.2s ease;
+}
+
+.mode-card-desc {
+  font-size: 12px;
+  color: #777777;
+  line-height: 1.4;
+  padding-left: 24px;
+}
+
 .form-grid {
   display: grid;
-  grid-template-columns: 360px 1fr;
+  grid-template-columns: 380px 1fr;
   gap: 40px;
 }
 
@@ -375,6 +661,216 @@ async function save() {
   display: flex;
   flex-direction: column;
   gap: 18px;
+}
+
+/* Opciones / Variantes Manager Card */
+.options-mgr-card {
+  background: #ffffff;
+  border: 1.5px solid #f1e2e6;
+  border-radius: 12px;
+  padding: 16px;
+  margin-top: 8px;
+  box-shadow: 0 2px 10px rgba(217, 109, 139, 0.05);
+}
+
+.options-mgr-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+  padding-bottom: 12px;
+  margin-bottom: 12px;
+  border-bottom: 1px solid #fce8ed;
+}
+
+.options-mgr-title {
+  font-size: 13.5px;
+  font-weight: 700;
+  color: #111111;
+  margin: 0 0 2px 0;
+}
+
+.options-mgr-sub {
+  font-size: 11.5px;
+  color: #777777;
+  margin: 0;
+}
+
+.options-total-pill {
+  font-size: 11.5px;
+  background: #111111;
+  color: #ffffff;
+  padding: 4px 10px;
+  border-radius: 20px;
+  white-space: nowrap;
+}
+
+.options-total-pill strong {
+  color: #55f1aa;
+}
+
+.options-mgr-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  max-height: 480px;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+.options-mgr-list::-webkit-scrollbar {
+  width: 4px;
+}
+
+.options-mgr-list::-webkit-scrollbar-thumb {
+  background: #e0e0e0;
+  border-radius: 4px;
+}
+
+.opt-item {
+  display: grid;
+  grid-template-columns: 60px 1fr;
+  gap: 12px;
+  align-items: center;
+  background: #fafafa;
+  border: 1px solid #e8e8e8;
+  border-radius: 8px;
+  padding: 8px 10px;
+  transition: all 0.2s ease;
+}
+
+.opt-item:hover {
+  border-color: #111111;
+  background: #ffffff;
+}
+
+.opt-item.opt-zero {
+  border-color: #fca5a5;
+  background: #fff8f8;
+}
+
+.opt-preview {
+  position: relative;
+  width: 60px;
+  height: 60px;
+  border-radius: 6px;
+  overflow: hidden;
+  border: 1px solid #e0e0e0;
+  background: #f0f0f0;
+}
+
+.opt-preview img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.opt-badge-idx {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  background: rgba(0, 0, 0, 0.7);
+  color: #ffffff;
+  font-size: 9.5px;
+  font-weight: 700;
+  padding: 1px 4px;
+  border-radius: 3px;
+}
+
+.opt-inputs {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.opt-field-group {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.opt-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: #555555;
+  white-space: nowrap;
+  min-width: 110px;
+}
+
+.opt-input {
+  flex: 1;
+  font-size: 12.5px;
+  padding: 5px 8px !important;
+  border-radius: 6px !important;
+  background: #ffffff !important;
+}
+
+.opt-stock-wrap {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+}
+
+.opt-stock-input {
+  max-width: 80px;
+  font-weight: 700;
+}
+
+.stock-state {
+  font-size: 10.5px;
+  font-weight: 700;
+  padding: 2px 7px;
+  border-radius: 4px;
+}
+
+.stock-state.in {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.stock-state.out {
+  background: #fee2e2;
+  color: #b91c1c;
+}
+
+/* Stock Auto Box */
+.stock-label-row,
+.label-with-hint {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.stock-auto-badge,
+.hint-pill {
+  font-size: 10.5px;
+  background: #ecfdf5;
+  color: #047857;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-weight: 600;
+  border: 1px solid #a7f3d0;
+}
+
+.stock-auto-box {
+  background: #f0fdf4;
+  border: 1.5px solid #bbf7d0;
+  border-radius: 10px;
+  padding: 12px 14px;
+}
+
+.stock-auto-value {
+  font-size: 18px;
+  font-weight: 800;
+  color: #166534;
+  margin-bottom: 2px;
+}
+
+.stock-auto-note {
+  font-size: 11.5px;
+  color: #15803d;
+  line-height: 1.3;
 }
 
 .label-row {
@@ -771,6 +1267,10 @@ async function save() {
 }
 
 @media (max-width: 600px) {
+  .mode-cards {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
   .product-form-page {
     padding: 18px 14px;
     border-radius: 12px;

@@ -5,6 +5,7 @@ import { useCatalogStore } from '@/store/catalog'
 import { useCurrencyStore } from '@/store/currency'
 import AppIcon from '@/components/AppIcon.vue'
 import { formatPrice } from '@/utils/format'
+import { resolveImage } from '@/utils/image'
 
 const cart = useCartStore()
 const catalog = useCatalogStore()
@@ -39,6 +40,10 @@ onUnmounted(() => {
 })
 
 function getRemainingStock(item) {
+  if (item.optionName) {
+    const optStock = typeof item.stock === 'number' ? item.stock : 0
+    return Math.max(0, optStock - (Number(item.qty) || 0))
+  }
   const prod = catalog.products.find((p) => p.id === item.id)
   const totalStock = prod ? Number(prod.stock) || 0 : (typeof item.stock === 'number' ? item.stock : 0)
   return Math.max(0, totalStock - (Number(item.qty) || 0))
@@ -67,10 +72,16 @@ async function applyCoupon() {
       </div>
 
       <div v-if="cart.items.length" class="cart-body">
-        <div v-for="item in cart.items" :key="item.id" class="cart-item">
-          <img :src="item.image" :alt="item.name" :style="{ objectPosition: item.pos }" />
+        <div v-for="item in cart.items" :key="item.itemKey || item.id" class="cart-item">
+          <img :src="resolveImage(item.image)" :alt="item.name" :style="{ objectPosition: item.pos }" />
           <div class="cart-info">
             <p class="cart-name">{{ item.name }}</p>
+
+            <!-- Opción / Variante seleccionada en el producto -->
+            <p v-if="item.optionName" class="cart-item-option">
+              <span class="option-pill">Opción: <strong>{{ item.optionName }}</strong></span>
+            </p>
+
             <div class="cart-prices">
               <span class="cart-price">{{ formatPrice(item.price) }}</span>
               <span v-if="item.originalPrice && item.originalPrice > item.price" class="cart-old-price">
@@ -84,11 +95,11 @@ async function applyCoupon() {
 
             <!-- Mostrar cuántas quedan en stock de forma dinámica -->
             <div class="cart-item-stock-row">
-              <span class="cart-stock-simple">Stock: {{ getRemainingStock(item) }}</span>
+              <span class="cart-stock-simple">Stock disponible: {{ getRemainingStock(item) }}</span>
             </div>
 
             <div class="qty">
-              <button class="qty-btn" aria-label="Menos" @click="cart.decrease(item.id)">
+              <button class="qty-btn" aria-label="Menos" @click="cart.decrease(item.itemKey || item.id)">
                 <AppIcon name="minus" :size="14" />
               </button>
               <span class="qty-num">{{ item.qty }}</span>
@@ -97,7 +108,7 @@ async function applyCoupon() {
                 :disabled="getRemainingStock(item) <= 0"
                 aria-label="Más"
                 :title="getRemainingStock(item) <= 0 ? 'Stock máximo alcanzado' : 'Añadir más'"
-                @click="cart.increase(item.id)"
+                @click="cart.increase(item.itemKey || item.id)"
               >
                 <AppIcon name="plus" :size="14" />
               </button>
@@ -106,7 +117,7 @@ async function applyCoupon() {
               Máximo en stock
             </p>
           </div>
-          <button class="item-remove" aria-label="Quitar" @click="cart.remove(item.id)">
+          <button class="item-remove" aria-label="Quitar" @click="cart.remove(item.itemKey || item.id)">
             <AppIcon name="trash" :size="17" />
           </button>
         </div>
@@ -300,6 +311,28 @@ async function applyCoupon() {
   font-size: 14px;
   color: #111111;
   line-height: 1.3;
+}
+
+.cart-item-option {
+  margin: 3px 0 4px;
+}
+
+.option-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 11px;
+  background: #fff0f3;
+  color: #b83253;
+  padding: 2px 7px;
+  border-radius: 4px;
+  border: 1px solid #fccfd8;
+  letter-spacing: 0.02em;
+}
+
+.option-pill strong {
+  color: #9f1239;
+  font-weight: 700;
 }
 
 .cart-prices {

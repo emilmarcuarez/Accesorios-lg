@@ -59,47 +59,63 @@ export const useCartStore = defineStore('cart', {
     toggleDrawer(open) {
       this.drawerOpen = typeof open === 'boolean' ? open : !this.drawerOpen
     },
-    add(product, qty = 1) {
-      const existing = this.items.find((item) => item.id === product.id)
+    add(product, qty = 1, selectedOption = null) {
+      const hasOpt = Boolean(selectedOption && selectedOption.name)
+      const itemKey = hasOpt
+        ? `${product.id}__opt_${selectedOption.id || selectedOption.name}`
+        : String(product.id)
+      const optionName = hasOpt ? selectedOption.name : null
+      const optionId = hasOpt ? (selectedOption.id || null) : null
+      const itemImage = hasOpt && selectedOption.image
+        ? selectedOption.image
+        : (product.image || (product.images && product.images[0]) || '')
+      const itemStock = hasOpt
+        ? (Number(selectedOption.stock) ?? 0)
+        : (product.stock ?? 0)
+
+      const existing = this.items.find((item) => (item.itemKey || String(item.id)) === itemKey)
       if (existing) {
         existing.qty = Math.min(
           existing.qty + qty,
-          product.stock ?? existing.qty + qty,
+          itemStock !== undefined && itemStock !== null ? itemStock : existing.qty + qty,
         )
       } else {
         this.items.push({
+          itemKey,
           id: product.id,
           name: product.name,
+          optionName,
+          optionId,
           price: Number(product.price),
           originalPrice: Number(product.oldPrice || product.price),
           discount: product.discount || 0,
-          image: product.image,
+          image: itemImage,
           pos: product.pos || 'center center',
-          stock: product.stock,
-          qty: Math.min(qty, product.stock ?? qty),
+          stock: itemStock,
+          qty: Math.min(qty, itemStock > 0 ? itemStock : qty),
         })
       }
       this.drawerOpen = true
       this.saveToSupabase()
     },
-    remove(productId) {
-      this.items = this.items.filter((item) => item.id !== productId)
+    remove(itemKey) {
+      this.items = this.items.filter((item) => (item.itemKey || item.id) !== itemKey && item.id !== itemKey)
       this.saveToSupabase()
     },
-    increase(productId) {
-      const item = this.items.find((i) => i.id === productId)
+    increase(itemKey) {
+      const item = this.items.find((i) => (i.itemKey || i.id) === itemKey || i.id === itemKey)
       if (!item) return
       if (item.stock !== undefined && item.stock !== null && item.qty >= item.stock) return
       item.qty++
       this.saveToSupabase()
     },
-    decrease(productId) {
-      const item = this.items.find((i) => i.id === productId)
+    decrease(itemKey) {
+      const item = this.items.find((i) => (i.itemKey || i.id) === itemKey || i.id === itemKey)
       if (!item) return
       if (item.qty > 1) {
         item.qty--
       } else {
-        this.remove(productId)
+        this.remove(itemKey)
       }
       this.saveToSupabase()
     },
@@ -207,11 +223,14 @@ export const useCartStore = defineStore('cart', {
         const discLine = hasDisc
           ? `    Descuento: -${item.discount}% (Reg: ${formatPrice(origPrice)})\n`
           : ''
+        const optLine = item.optionName
+          ? `    *Opción seleccionada:* ${item.optionName}\n`
+          : ''
         const link = item.id ? `${origin}/producto/${item.id}` : ''
         const linkLine = link ? `    Ver producto: ${link}` : ''
         return [
           `${index + 1}) *${item.name}*`,
-          `    Cantidad: ${item.qty}`,
+          optLine + `    Cantidad: ${item.qty}`,
           discLine + `    Precio unitario: ${formatPrice(unitUsd)} (Bs. ${unitBs})`,
           `    Subtotal: ${formatPrice(lineUsd)} (Bs. ${lineBs})`,
           linkLine,
@@ -389,10 +408,15 @@ export const useCartStore = defineStore('cart', {
             item.products?.discount ||
             (hasDiscount ? Math.round(((orig - price) / orig) * 100) : 0)
 
+          const optSub = item.optionName || item.option_name
+            ? `<div style="font-size: 11px; color: #c92a54; font-weight: 600; margin-top: 2px;">Opción: ${item.optionName || item.option_name}</div>`
+            : ''
+
           return `
           <tr>
             <td class="product">
               <strong>${name}</strong>
+              ${optSub}
             </td>
             <td class="amount muted">
               ${hasDiscount ? `<span class="crossed">${formatPrice(orig)}</span>` : formatPrice(orig)}

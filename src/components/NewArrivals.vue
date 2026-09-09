@@ -67,8 +67,12 @@ onMounted(() => catalog.fetch())
                 Bs. {{ currency.formatBsNum(product.price) }}
               </span>
             </div>
-            <button class="mini-add" aria-label="Agregar al carrito" @click="cart.add(product)">
-              <AppIcon name="plus" :size="16" />
+            <button
+              class="mini-add"
+              :aria-label="product.hasOptions && product.options && product.options.length ? 'Ver opciones' : 'Agregar al carrito'"
+              @click="product.hasOptions && product.options && product.options.length ? $router.push(`/producto/${product.id}`) : cart.add(product)"
+            >
+              <AppIcon :name="product.hasOptions && product.options && product.options.length ? 'eye' : 'plus'" :size="16" />
             </button>
           </div>
         </article>

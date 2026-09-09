@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia'
 import { listProducts, listCategories } from '@/lib/db'
-import { parseProductImages } from '@/utils/image'
+import { parseProductImages, parseProductOptions } from '@/utils/image'
 
 function mapProduct(p, categoriesMap = {}) {
   const price = Number(p.price) || 0
@@ -21,8 +21,13 @@ function mapProduct(p, categoriesMap = {}) {
   const discountAmount =
     discount > 0 ? Number((price - effectivePrice).toFixed(2)) : 0
 
+  const { hasOptions, options } = parseProductOptions(p.image)
   const images = parseProductImages(p.image)
-  const mainImage = images[0] || (typeof p.image === 'string' && !p.image.startsWith('[') ? p.image : '')
+  const mainImage = images[0] || (typeof p.image === 'string' && !p.image.startsWith('[') && !p.image.startsWith('{') ? p.image : '')
+
+  const computedStock = hasOptions && options.length > 0
+    ? options.reduce((sum, opt) => sum + (Number(opt.stock) || 0), 0)
+    : (p.stock ?? 0)
 
   return {
     id: p.id,
@@ -37,7 +42,14 @@ function mapProduct(p, categoriesMap = {}) {
     discount,
     discountAmount,
     discountSource,
-    stock: p.stock ?? 0,
+    stock: computedStock,
+    hasOptions,
+    options: options.map((opt, i) => ({
+      id: opt.id || `opt_${i + 1}`,
+      name: opt.name || `Opción ${i + 1}`,
+      image: opt.image || mainImage,
+      stock: Number(opt.stock) || 0,
+    })),
     image: mainImage,
     images: images.length ? images : (mainImage ? [mainImage] : []),
     pos: 'center',

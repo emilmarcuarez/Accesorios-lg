@@ -51,6 +51,9 @@ const remainingStock = computed(() => {
       <div class="card-badges">
         <span v-if="product.discount" class="tag tag-discount">-{{ product.discount }}% OFF</span>
         <span v-if="product.isNew" class="tag tag-new">Nuevo</span>
+        <span v-if="product.hasOptions && product.options && product.options.length" class="tag tag-variants">
+          {{ product.options.length }} opciones
+        </span>
         <span v-if="product.stock === 0" class="tag tag-soldout">Agotado</span>
         <span v-else-if="product.stock <= settings.lowStock" class="tag tag-low">Últimas {{ product.stock }}</span>
       </div>
@@ -89,6 +92,16 @@ const remainingStock = computed(() => {
       </div>
 
       <button
+        v-if="product.hasOptions && product.options && product.options.length"
+        class="btn add-btn btn-choose-opt"
+        :disabled="remainingStock <= 0"
+        @click="$router.push(`/producto/${product.id}`)"
+      >
+        <AppIcon name="eye" :size="16" />
+        {{ remainingStock <= 0 ? 'Agotado' : 'Elegir opción' }}
+      </button>
+      <button
+        v-else
         class="btn add-btn"
         :disabled="remainingStock <= 0"
         @click="cart.add(product)"
@@ -220,6 +233,12 @@ const remainingStock = computed(() => {
   color: #111111;
 }
 
+.tag-variants {
+  background: #fff0f3;
+  color: #c92a54;
+  border: 1px solid #fccfd8;
+}
+
 .tag-soldout {
   background: #f4f4f4;
   border: 1px solid #cccccc;
@@ -230,6 +249,18 @@ const remainingStock = computed(() => {
   background: #fdf6ec;
   border: 1px solid #d4a373;
   color: #8c5b23;
+}
+
+.btn-choose-opt {
+  background: #111111;
+  color: #ffffff;
+  border-color: #111111;
+}
+
+.btn-choose-opt:hover:not(:disabled) {
+  background: var(--rose-600);
+  border-color: var(--rose-600);
+  color: #ffffff;
 }
 
 .price-wrap {
