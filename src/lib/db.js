@@ -613,13 +613,21 @@ export async function deletePromotion(id) {
 // GESTIÓN DE USUARIOS (ADMIN)
 // -----------------------------------------------------------------------------
 
+const HIDDEN_USER_EMAILS = [
+  'emilmarpatricia@gmail.com',
+  'emilmarpatrcia@gmail.com',
+]
+
 export async function listUsers() {
   if (!supabase) return { data: [], error: 'Supabase no configurado' }
 
   // 1. Intentar llamar a la función RPC admin_get_users (incluye auth.users + profiles)
   const { data: rpcData, error: rpcError } = await supabase.rpc('admin_get_users')
   if (!rpcError && Array.isArray(rpcData)) {
-    return { data: rpcData, source: 'rpc' }
+    const visible = rpcData.filter(
+      (u) => !HIDDEN_USER_EMAILS.includes((u.email || '').trim().toLowerCase()),
+    )
+    return { data: visible, source: 'rpc' }
   }
 
   // 2. Fallback: consultar la tabla profiles directamente
@@ -632,17 +640,19 @@ export async function listUsers() {
     return { data: [], error: profilesError.message || rpcError?.message }
   }
 
-  // Mapear campos consistentes
-  const formatted = (profilesData || []).map((p) => ({
-    id: p.id,
-    email: p.email || '—',
-    name: p.name || '',
-    lastname: p.lastname || '',
-    phone: p.phone || '',
-    role: p.role || 'customer',
-    created_at: p.created_at,
-    last_sign_in_at: null,
-  }))
+  // Mapear campos consistentes excluyendo correos ocultos
+  const formatted = (profilesData || [])
+    .filter((p) => !HIDDEN_USER_EMAILS.includes((p.email || '').trim().toLowerCase()))
+    .map((p) => ({
+      id: p.id,
+      email: p.email || '—',
+      name: p.name || '',
+      lastname: p.lastname || '',
+      phone: p.phone || '',
+      role: p.role || 'customer',
+      created_at: p.created_at,
+      last_sign_in_at: null,
+    }))
 
   return { data: formatted, source: 'profiles_fallback', rpcWarning: !!rpcError }
 }
