@@ -283,7 +283,7 @@ async function save() {
     <!-- Modalidad de producto: Individual vs Múltiple -->
     <div class="product-mode-box">
       <div class="mode-header">
-        <span class="mode-title">✨ Modalidad del producto</span>
+        <span class="mode-title">Modalidad del producto</span>
         <span class="mode-badge" :class="{ 'is-variants': form.has_options }">
           {{ form.has_options ? 'Múltiple (Stock independiente por opción)' : 'Individual (Stock general compartido)' }}
         </span>
@@ -331,7 +331,7 @@ async function save() {
           <div class="main-preview-container">
             <img :src="resolveImage(form.images[0])" class="main-preview-img" alt="Foto principal" />
             <div class="main-tag">
-              ⭐ Foto de Portada (Principal)
+              Foto de Portada (Principal)
             </div>
             <div class="main-overlay">
               <button type="button" class="action-pill danger" @click="removeImageAt(0)">
@@ -350,7 +350,6 @@ async function save() {
             >
               <img :src="resolveImage(imgUrl)" :alt="`Foto ${idx + 1}`" />
               <span class="thumb-num">#{{ idx + 1 }}</span>
-              <span v-if="idx === 0" class="main-star-icon">⭐</span>
 
               <!-- Controles flotantes en cada miniatura -->
               <div class="thumb-hover-actions">
@@ -482,7 +481,7 @@ async function save() {
         </div>
 
         <div v-if="form.discount > 0 && form.price > 0" class="discount-live-calc">
-          <span>🏷️ Precio final en tienda (-{{ form.discount }}%):</span>
+          <span>Precio final en tienda (-{{ form.discount }}%):</span>
           <strong>${{ (form.price * (1 - form.discount / 100)).toFixed(2) }}</strong>
           <span class="calc-save">(Ahorro: ${{ (form.price * (form.discount / 100)).toFixed(2) }})</span>
         </div>
@@ -491,7 +490,7 @@ async function save() {
         <div class="field">
           <div class="label-with-hint">
             <label>Stock</label>
-            <span v-if="form.has_options" class="hint-pill">⚡ Suma automática de opciones</span>
+            <span v-if="form.has_options" class="hint-pill">Suma automática de opciones</span>
           </div>
           <div v-if="form.has_options" class="stock-auto-box">
             <div class="stock-auto-value">{{ totalOptionsStock }} unidades</div>
@@ -516,7 +515,11 @@ async function save() {
       <div class="options-section-header">
         <div class="options-title-block">
           <div class="options-title-line">
-            <span class="options-icon">{{ form.has_options ? '🎨' : '🖼️' }}</span>
+            <svg class="options-title-svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <rect width="18" height="18" x="3" y="3" rx="2" ry="2"/>
+              <circle cx="9" cy="9" r="2"/>
+              <path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/>
+            </svg>
             <h3 class="options-main-title">
               {{ form.has_options ? 'Stock y orden de cada opción (Múltiple)' : 'Opciones y fotos del producto (Individual)' }}
             </h3>
@@ -568,7 +571,7 @@ async function save() {
             </div>
             <div class="card-header-meta">
               <div class="meta-tags-row">
-                <span v-if="idx === 0" class="tag-primary-badge">⭐ Portada (#1)</span>
+                <span v-if="idx === 0" class="tag-primary-badge">Portada (#1)</span>
                 <template v-if="form.has_options">
                   <span v-if="(form.options[idx]?.stock || 0) <= 0" class="stock-pill-state out">
                     ✕ Agotado
@@ -596,22 +599,22 @@ async function save() {
               <button
                 v-if="idx > 0"
                 type="button"
-                class="order-ctrl-btn"
-                title="Mover antes en la lista"
+                class="order-ctrl-btn arrow-btn"
+                title="Mover antes"
+                aria-label="Mover antes"
                 @click="moveImage(idx, idx - 1)"
               >
-                <AppIcon name="chevronLeft" :size="12" />
-                <span class="btn-ctrl-label">Mover antes</span>
+                <AppIcon name="chevronLeft" :size="13" />
               </button>
               <button
                 v-if="idx < form.images.length - 1"
                 type="button"
-                class="order-ctrl-btn"
-                title="Mover después en la lista"
+                class="order-ctrl-btn arrow-btn"
+                title="Mover después"
+                aria-label="Mover después"
                 @click="moveImage(idx, idx + 1)"
               >
-                <span class="btn-ctrl-label">Mover después</span>
-                <AppIcon name="chevronRight" :size="12" />
+                <AppIcon name="chevronRight" :size="13" />
               </button>
               <button
                 v-if="idx > 0"
@@ -620,7 +623,7 @@ async function save() {
                 title="Poner como la primera opción (#1 Portada)"
                 @click="setAsMain(idx)"
               >
-                ⭐ Poner 1ª
+                Poner 1ª
               </button>
             </div>
           </div>
@@ -699,7 +702,11 @@ async function save() {
 
             <!-- Modo Individual: Aviso de stock global compartido -->
             <div v-else class="individual-stock-banner">
-              <span class="stock-banner-icon">📦</span>
+              <svg class="stock-banner-icon-svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path>
+                <polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline>
+                <line x1="12" y1="22.08" x2="12" y2="12"></line>
+              </svg>
               <span class="stock-banner-text">
                 Comparte el stock general del producto (<strong>{{ form.stock || 0 }} disp.</strong>)
               </span>
@@ -1028,22 +1035,27 @@ async function save() {
   gap: 4px;
   flex: 1;
   min-width: 0;
+  overflow: hidden;
 }
 
 .meta-tags-row {
   display: flex;
   align-items: center;
   gap: 6px;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
+  overflow: hidden;
 }
 
 .tag-primary-badge {
-  font-size: 10.5px;
+  font-size: 10px;
   font-weight: 700;
-  background: #fff3bf;
-  color: #d97706;
+  background: #fdf6ec;
+  color: #b45309;
+  border: 1px solid #fde68a;
   padding: 2px 7px;
   border-radius: 4px;
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
 .stock-pill-state {
@@ -1051,6 +1063,11 @@ async function save() {
   font-weight: 700;
   padding: 2px 8px;
   border-radius: 999px;
+  white-space: nowrap;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  flex-shrink: 0;
 }
 
 .stock-pill-state.in {
@@ -1075,34 +1092,42 @@ async function save() {
 .card-order-controls {
   display: flex;
   align-items: center;
-  gap: 6px;
-  flex-wrap: wrap;
+  gap: 5px;
+  flex-shrink: 0;
   margin-left: auto;
 }
 
 .order-ctrl-btn {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
+  justify-content: center;
   background: #ffffff;
-  border: 1px solid #dcdfe4;
+  border: 1.5px solid #dcdfe4;
   color: #374151;
-  font-size: 11px;
+  font-size: 11.5px;
   font-weight: 600;
-  padding: 4px 8px;
+  height: 28px;
   border-radius: 6px;
   cursor: pointer;
   transition: all 0.15s ease;
   white-space: nowrap;
 }
 
-.order-ctrl-btn:hover {
+.order-ctrl-btn.arrow-btn {
+  width: 28px;
+  padding: 0;
+  color: #4b5563;
+}
+
+.order-ctrl-btn.arrow-btn:hover {
   background: #f3f4f6;
   border-color: #9ca3af;
   color: #111827;
 }
 
 .order-ctrl-btn.make-cover-btn {
+  padding: 0 8px;
+  font-size: 11px;
   background: #fffbeb;
   border-color: #fcd34d;
   color: #b45309;
@@ -1112,10 +1137,6 @@ async function save() {
   background: #fef3c7;
   border-color: #f59e0b;
   color: #78350f;
-}
-
-.btn-ctrl-label {
-  display: inline;
 }
 
 @media (max-width: 480px) {
@@ -1174,8 +1195,9 @@ async function save() {
   color: #831843;
 }
 
-.stock-banner-icon {
-  font-size: 15px;
+.stock-banner-icon-svg {
+  color: #be185d;
+  flex-shrink: 0;
 }
 
 .stock-banner-text strong {

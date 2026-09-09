@@ -29,9 +29,27 @@ const showModal = ref(false)
 const selectedModalOpt = ref(null)
 const modalQty = ref(1)
 
+function getOptionRemaining(opt) {
+  if (!opt) return 0
+  const optKey = `${props.product.id}__opt_${opt.id || opt.name}`
+  const inCart = (cart.items || []).find((it) => (it.itemKey || it.id) === optKey)?.qty || 0
+  return Math.max(0, (Number(opt.stock) || 0) - inCart)
+}
+
+const modalOptStock = computed(() => {
+  return getOptionRemaining(selectedModalOpt.value)
+})
+
+function selectModalOption(opt) {
+  if (getOptionRemaining(opt) <= 0) return
+  selectedModalOpt.value = opt
+  modalQty.value = 1
+}
+
 function openModal() {
   if (remainingStock.value <= 0) return
-  const firstWithStock = props.product.options?.find((o) => (Number(o.stock) || 0) > 0)
+  // Buscar la primera opción que realmente tenga stock restante disponible
+  const firstWithStock = props.product.options?.find((o) => getOptionRemaining(o) > 0)
   selectedModalOpt.value = firstWithStock || props.product.options?.[0] || null
   modalQty.value = 1
   showModal.value = true
@@ -40,13 +58,6 @@ function openModal() {
 function closeModal() {
   showModal.value = false
 }
-
-const modalOptStock = computed(() => {
-  if (!selectedModalOpt.value) return 0
-  const optKey = `${props.product.id}__opt_${selectedModalOpt.value.id}`
-  const inCart = (cart.items || []).find((it) => (it.itemKey || it.id) === optKey)?.qty || 0
-  return Math.max(0, (Number(selectedModalOpt.value.stock) || 0) - inCart)
-})
 
 function addFromModal() {
   if (!selectedModalOpt.value || modalOptStock.value <= 0) return
@@ -160,13 +171,16 @@ function handleAddIndividual() {
       <Transition name="modal-fade">
         <div v-if="showModal" class="quick-opt-backdrop" @click.self="closeModal">
           <div class="quick-opt-modal" role="dialog" aria-modal="true">
+            <!-- Pestaña decorativa para mobile (bottom sheet handle) -->
+            <div class="mobile-sheet-handle"></div>
+
             <div class="quick-modal-head">
               <div class="quick-head-info">
-                <span class="quick-label">Elegir variante</span>
+                <span class="quick-eyebrow">Selección de variante</span>
                 <h4 class="quick-title">{{ product.name }}</h4>
               </div>
-              <button type="button" class="quick-close-btn" aria-label="Cerrar" @click="closeModal">
-                <AppIcon name="close" :size="18" />
+              <button type="button" class="quick-close-btn" aria-label="Cerrar modal" @click="closeModal">
+                <AppIcon name="close" :size="16" />
               </button>
             </div>
 
@@ -179,31 +193,36 @@ function handleAddIndividual() {
                   class="quick-preview-img"
                 />
                 <div class="quick-preview-details">
-                  <span class="quick-opt-active-name">{{ selectedModalOpt?.name || 'Selecciona una opción' }}</span>
+                  <div class="quick-opt-title-line">
+                    <span class="quick-opt-active-name">{{ selectedModalOpt?.name || 'Selecciona una opción' }}</span>
+                    <span
+                      v-if="modalOptStock <= 0"
+                      class="quick-stock-badge out"
+                    >
+                      Agotado
+                    </span>
+                    <span
+                      v-else
+                      class="quick-stock-badge in"
+                    >
+                      ● {{ modalOptStock }} disp.
+                    </span>
+                  </div>
                   <div class="quick-price-line">
                     <strong class="quick-price">{{ formatPrice(product.price) }}</strong>
                     <span v-if="currency.effectiveRate" class="quick-price-bs">
-                      Bs. {{ currency.formatBsNum(product.price) }}
+                      (Bs. {{ currency.formatBsNum(product.price) }})
                     </span>
                   </div>
-                  <span
-                    v-if="modalOptStock <= 0"
-                    class="quick-stock-badge out"
-                  >
-                    ✕ Agotado en esta opción
-                  </span>
-                  <span
-                    v-else
-                    class="quick-stock-badge in"
-                  >
-                    ● {{ modalOptStock }} disponibles
-                  </span>
                 </div>
               </div>
 
               <!-- Lista de opciones disponibles -->
               <div class="quick-variants-section">
-                <label class="quick-section-title">Opciones disponibles:</label>
+                <div class="quick-section-header">
+                  <label class="quick-section-title">Opciones disponibles</label>
+                  <span class="quick-options-count">{{ product.options.length }} opciones</span>
+                </div>
                 <div class="quick-variants-grid">
                   <button
                     v-for="opt in product.options"
@@ -212,46 +231,57 @@ function handleAddIndividual() {
                     class="quick-variant-btn"
                     :class="{
                       active: selectedModalOpt?.id === opt.id,
-                      exhausted: (Number(opt.stock) || 0) <= 0,
+                      exhausted: getOptionRemaining(opt) <= 0,
                     }"
-                    @click="selectedModalOpt = opt; modalQty = 1"
+                    @click="selectModalOption(opt)"
                   >
                     <div class="quick-thumb-wrap">
                       <img :src="resolveImage(opt.image)" :alt="opt.name" />
-                      <span v-if="selectedModalOpt?.id === opt.id" class="quick-check-dot">✓</span>
+                      <span v-if="selectedModalOpt?.id === opt.id" class="quick-check-dot">
+                        <svg width="8" height="7" viewBox="0 0 10 8" fill="none">
+                          <path d="M1 4L3.5 6.5L9 1" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                        </svg>
+                      </span>
                     </div>
                     <span class="quick-opt-name" :title="opt.name">{{ opt.name }}</span>
-                    <span v-if="(Number(opt.stock) || 0) <= 0" class="quick-opt-status out">Agotado</span>
-                    <span v-else class="quick-opt-status in">{{ opt.stock }} disp.</span>
+                    <span v-if="getOptionRemaining(opt) <= 0" class="quick-opt-status out">Agotado</span>
+                    <span v-else class="quick-opt-status in">{{ getOptionRemaining(opt) }} disp.</span>
                   </button>
                 </div>
               </div>
 
               <!-- Selector de cantidad -->
               <div class="quick-qty-section">
-                <label class="quick-section-title">Cantidad:</label>
-                <div class="quick-qty-stepper">
-                  <button
-                    type="button"
-                    class="qty-stepper-btn"
-                    :disabled="modalQty <= 1"
-                    @click="modalQty = Math.max(1, modalQty - 1)"
-                  >
-                    <AppIcon name="minus" :size="14" />
-                  </button>
-                  <span class="qty-stepper-num">{{ modalQty }}</span>
-                  <button
-                    type="button"
-                    class="qty-stepper-btn"
-                    :disabled="modalQty >= modalOptStock"
-                    @click="modalQty++"
-                  >
-                    <AppIcon name="plus" :size="14" />
-                  </button>
+                <div class="quick-qty-label-box">
+                  <label class="quick-section-title">Cantidad</label>
+                  <span class="quick-qty-limit-note">Máx: {{ modalOptStock }} unid.</span>
                 </div>
-                <div class="quick-subtotal-calc">
-                  <span>Subtotal:</span>
-                  <strong>{{ formatPrice(product.price * modalQty) }}</strong>
+                <div class="quick-qty-right">
+                  <div class="quick-qty-stepper">
+                    <button
+                      type="button"
+                      class="qty-stepper-btn"
+                      :disabled="modalQty <= 1"
+                      aria-label="Menos"
+                      @click="modalQty = Math.max(1, modalQty - 1)"
+                    >
+                      <AppIcon name="minus" :size="13" />
+                    </button>
+                    <span class="qty-stepper-num">{{ modalQty }}</span>
+                    <button
+                      type="button"
+                      class="qty-stepper-btn"
+                      :disabled="modalQty >= modalOptStock"
+                      aria-label="Más"
+                      @click="modalQty++"
+                    >
+                      <AppIcon name="plus" :size="13" />
+                    </button>
+                  </div>
+                  <div class="quick-subtotal-calc">
+                    <span>Total:</span>
+                    <strong>{{ formatPrice(product.price * modalQty) }}</strong>
+                  </div>
                 </div>
               </div>
             </div>
@@ -263,7 +293,7 @@ function handleAddIndividual() {
                 :disabled="modalOptStock <= 0"
                 @click="addFromModal"
               >
-                <AppIcon name="bag" :size="17" />
+                <AppIcon name="bag" :size="16" />
                 <span>{{ modalOptStock <= 0 ? 'Opción agotada' : 'Agregar al carrito' }}</span>
               </button>
               <router-link
@@ -271,7 +301,8 @@ function handleAddIndividual() {
                 class="quick-view-more"
                 @click="closeModal"
               >
-                Ver detalle completo del producto →
+                <span>Ver detalles y descripción completa</span>
+                <AppIcon name="arrowRight" :size="13" />
               </router-link>
             </div>
           </div>
@@ -614,36 +645,38 @@ function handleAddIndividual() {
   }
 }
 
-/* Modal de selección rápida de variantes */
+/* Modal de selección rápida de variantes - Sofisticado Boutique */
 .quick-opt-backdrop {
   position: fixed;
   inset: 0;
-  background: rgba(15, 23, 42, 0.65);
-  backdrop-filter: blur(4px);
+  background: rgba(35, 29, 31, 0.55);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
   z-index: 99999;
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 16px;
+  padding: 18px;
 }
 
 .quick-opt-modal {
   background: #ffffff;
   width: 440px;
   max-width: 100%;
-  max-height: 88vh;
-  border-radius: 16px;
+  max-height: 90vh;
+  border-radius: 20px;
   display: flex;
   flex-direction: column;
-  box-shadow: 0 20px 45px rgba(0, 0, 0, 0.25);
+  box-shadow: 0 24px 60px -10px rgba(45, 30, 36, 0.28);
+  border: 1px solid #eee8e5;
   overflow: hidden;
-  animation: popIn 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  animation: modalScaleIn 0.22s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-@keyframes popIn {
+@keyframes modalScaleIn {
   from {
     opacity: 0;
-    transform: scale(0.95) translateY(10px);
+    transform: scale(0.96) translateY(8px);
   }
   to {
     opacity: 1;
@@ -660,86 +693,109 @@ function handleAddIndividual() {
   opacity: 0;
 }
 
+.mobile-sheet-handle {
+  display: none;
+}
+
+/* Header refinado, claro y sofisticado (adiós negro con rosado) */
 .quick-modal-head {
-  padding: 14px 18px;
-  background: #111111;
-  color: #ffffff;
+  padding: 16px 20px;
+  background: #fbf9f8;
+  border-bottom: 1px solid #f0eae7;
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 12px;
 }
 
-.quick-label {
+.quick-eyebrow {
   font-size: 10.5px;
   text-transform: uppercase;
-  letter-spacing: 0.08em;
-  color: #f472b6;
+  letter-spacing: 0.12em;
+  color: #a8826b;
   font-weight: 700;
   display: block;
 }
 
 .quick-title {
-  margin: 2px 0 0;
-  font-size: 14px;
+  margin: 3px 0 0;
+  font-size: 15px;
   font-weight: 700;
-  color: #ffffff;
-  line-height: 1.25;
+  color: #242021;
+  line-height: 1.3;
+  letter-spacing: -0.01em;
 }
 
 .quick-close-btn {
-  background: transparent;
-  border: none;
-  color: #ffffff;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: #ffffff;
+  border: 1px solid #e7e0dc;
+  color: #6e645e;
   cursor: pointer;
-  padding: 4px;
   display: flex;
   align-items: center;
   justify-content: center;
-  opacity: 0.85;
-  transition: opacity 0.2s;
+  transition: all 0.2s ease;
+  flex-shrink: 0;
 }
 .quick-close-btn:hover {
-  opacity: 1;
+  background: #f3ede9;
+  color: #1f1b1a;
+  transform: rotate(90deg);
 }
 
 .quick-modal-body {
-  padding: 16px 18px;
+  padding: 16px 20px;
   overflow-y: auto;
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: 16px;
 }
 
+/* Vista previa de variante */
 .quick-active-preview {
   display: flex;
   align-items: center;
-  gap: 12px;
-  background: #fdf2f5;
-  border: 1px solid #fce7ef;
-  padding: 10px 12px;
-  border-radius: 10px;
+  gap: 14px;
+  background: #fdfbfb;
+  border: 1px solid #f2ebe8;
+  padding: 12px 14px;
+  border-radius: 14px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.02);
 }
 
 .quick-preview-img {
-  width: 54px;
-  height: 54px;
-  border-radius: 8px;
+  width: 58px;
+  height: 58px;
+  border-radius: 10px;
   object-fit: cover;
-  background: #eee;
+  border: 1px solid #ece4e0;
+  background: #faf7f5;
   flex-shrink: 0;
 }
 
 .quick-preview-details {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 3px;
   min-width: 0;
+  flex: 1;
+}
+
+.quick-opt-title-line {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  flex-wrap: wrap;
 }
 
 .quick-opt-active-name {
-  font-size: 13.5px;
+  font-size: 14px;
   font-weight: 700;
-  color: #111827;
+  color: #242021;
 }
 
 .quick-price-line {
@@ -749,83 +805,101 @@ function handleAddIndividual() {
 }
 
 .quick-price {
-  font-size: 15px;
+  font-size: 16px;
   font-weight: 800;
-  color: #e11d48;
+  color: #a4425f;
 }
 
 .quick-price-bs {
-  font-size: 11.5px;
-  color: #64748b;
+  font-size: 12px;
+  color: #8c827c;
   font-weight: 600;
 }
 
 .quick-stock-badge {
   font-size: 11px;
   font-weight: 700;
-  display: inline-block;
-  margin-top: 2px;
+  padding: 2px 8px;
+  border-radius: 20px;
 }
 .quick-stock-badge.in {
-  color: #16a34a;
+  background: #edf7ed;
+  color: #2e7d32;
 }
 .quick-stock-badge.out {
+  background: #fdf2f2;
   color: #dc2626;
 }
 
+.quick-section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
 .quick-section-title {
-  font-size: 11.5px;
+  font-size: 11px;
   font-weight: 700;
-  color: #4b5563;
+  color: #786f68;
   text-transform: uppercase;
-  letter-spacing: 0.04em;
-  display: block;
-  margin-bottom: 6px;
+  letter-spacing: 0.08em;
+  margin: 0;
+}
+
+.quick-options-count {
+  font-size: 11px;
+  color: #a8826b;
+  font-weight: 600;
 }
 
 .quick-variants-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(95px, 1fr));
-  gap: 8px;
+  grid-template-columns: repeat(auto-fill, minmax(92px, 1fr));
+  gap: 9px;
 }
 
 .quick-variant-btn {
   background: #ffffff;
-  border: 1.5px solid #e5e7eb;
-  border-radius: 10px;
+  border: 1.5px solid #ece5e1;
+  border-radius: 12px;
   padding: 8px 6px;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 4px;
+  gap: 5px;
   cursor: pointer;
-  transition: all 0.15s ease;
+  transition: all 0.18s ease;
   text-align: center;
 }
 
-.quick-variant-btn:hover {
-  border-color: #111111;
-  background: #fafafa;
+.quick-variant-btn:hover:not(.exhausted) {
+  border-color: #a8826b;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(168, 130, 107, 0.12);
 }
 
 .quick-variant-btn.active {
-  border-color: #111111;
-  background: #fff0f4;
-  box-shadow: 0 0 0 1.5px #111111;
+  border-color: #a4425f;
+  background: #fff8fa;
+  box-shadow: 0 0 0 1.5px #a4425f, 0 4px 12px rgba(164, 66, 95, 0.15);
 }
 
 .quick-variant-btn.exhausted {
   opacity: 0.45;
-  filter: grayscale(80%);
+  filter: grayscale(85%);
   cursor: not-allowed;
+  border-color: #e5e5e5;
+  background: #fafafa;
 }
 
 .quick-thumb-wrap {
   position: relative;
-  width: 40px;
-  height: 40px;
-  border-radius: 6px;
+  width: 44px;
+  height: 44px;
+  border-radius: 8px;
   overflow: hidden;
+  border: 1px solid #f0eae7;
 }
 
 .quick-thumb-wrap img {
@@ -836,24 +910,23 @@ function handleAddIndividual() {
 
 .quick-check-dot {
   position: absolute;
-  top: 1px;
-  right: 1px;
-  background: #111111;
+  top: 2px;
+  right: 2px;
+  background: #a4425f;
   color: #ffffff;
-  font-size: 8.5px;
-  font-weight: 900;
-  width: 13px;
-  height: 13px;
+  width: 14px;
+  height: 14px;
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.2);
 }
 
 .quick-opt-name {
   font-size: 11.5px;
   font-weight: 700;
-  color: #111827;
+  color: #242021;
   max-width: 100%;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -861,115 +934,216 @@ function handleAddIndividual() {
 }
 
 .quick-opt-status {
-  font-size: 10px;
+  font-size: 10.5px;
   font-weight: 700;
 }
 .quick-opt-status.in {
-  color: #d97706;
+  color: #a8826b;
 }
 .quick-opt-status.out {
-  color: #ef4444;
+  color: #dc2626;
 }
 
 .quick-qty-section {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding-top: 6px;
-  border-top: 1px dashed #e5e7eb;
+  padding-top: 10px;
+  border-top: 1px solid #f0eae7;
+  gap: 12px;
+}
+
+.quick-qty-label-box {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.quick-qty-limit-note {
+  font-size: 10.5px;
+  color: #8c827c;
+}
+
+.quick-qty-right {
+  display: flex;
+  align-items: center;
+  gap: 14px;
 }
 
 .quick-qty-stepper {
   display: flex;
   align-items: center;
-  border: 1.5px solid #d1d5db;
-  border-radius: 8px;
+  border: 1.5px solid #e0d8d3;
+  border-radius: 10px;
   overflow: hidden;
+  background: #ffffff;
 }
 
 .qty-stepper-btn {
-  background: #f3f4f6;
+  background: #fbf9f8;
   border: none;
-  width: 30px;
-  height: 30px;
+  width: 32px;
+  height: 32px;
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  color: #374151;
-  transition: background 0.15s;
+  color: #4a423d;
+  transition: all 0.15s ease;
 }
 .qty-stepper-btn:hover:not(:disabled) {
-  background: #e5e7eb;
+  background: #ede6e1;
+  color: #1a1716;
 }
 .qty-stepper-btn:disabled {
-  opacity: 0.35;
+  opacity: 0.3;
   cursor: not-allowed;
 }
 
 .qty-stepper-num {
-  width: 32px;
+  width: 34px;
   text-align: center;
-  font-size: 13.5px;
+  font-size: 14px;
   font-weight: 700;
-  color: #111827;
+  color: #242021;
 }
 
 .quick-subtotal-calc {
   display: flex;
   align-items: baseline;
-  gap: 6px;
-  font-size: 12.5px;
-  color: #6b7280;
+  gap: 5px;
+  font-size: 12px;
+  color: #786f68;
 }
 .quick-subtotal-calc strong {
-  font-size: 15px;
-  color: #111827;
+  font-size: 16px;
+  color: #242021;
 }
 
 .quick-modal-footer {
-  padding: 12px 18px 16px;
-  background: #f9fafb;
-  border-top: 1px solid #f3f4f6;
+  padding: 14px 20px 18px;
+  background: #fbf9f8;
+  border-top: 1px solid #f0eae7;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 10px;
 }
 
 .btn-quick-add {
   width: 100%;
-  padding: 11px;
-  background: #111111;
+  padding: 12px 18px;
+  background: linear-gradient(135deg, #242021 0%, #3a3235 100%);
   color: #ffffff;
   border: none;
-  border-radius: 10px;
+  border-radius: 12px;
   font-size: 13.5px;
   font-weight: 700;
+  letter-spacing: 0.02em;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 8px;
-  transition: all 0.15s ease;
+  transition: all 0.2s ease;
+  box-shadow: 0 4px 14px rgba(36, 32, 33, 0.18);
 }
 .btn-quick-add:hover:not(:disabled) {
-  background: var(--rose-600);
+  background: linear-gradient(135deg, #a4425f 0%, #87304a 100%);
+  box-shadow: 0 6px 18px rgba(164, 66, 95, 0.28);
   transform: translateY(-1px);
 }
 .btn-quick-add:disabled {
-  background: #9ca3af;
+  background: #dfd8d4;
+  color: #9c928c;
+  box-shadow: none;
   cursor: not-allowed;
+  transform: none;
 }
 
 .quick-view-more {
-  text-align: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
   font-size: 12px;
-  color: #6b7280;
-  text-decoration: underline;
-  cursor: pointer;
-  transition: color 0.15s;
+  color: #8c7668;
+  font-weight: 600;
+  text-decoration: none;
+  transition: color 0.15s ease;
+  padding: 2px 0;
 }
 .quick-view-more:hover {
-  color: #111827;
+  color: #a4425f;
+}
+
+/* RESPONSIVE DESIGN */
+@media (max-width: 520px) {
+  .quick-opt-backdrop {
+    align-items: flex-end;
+    padding: 0;
+  }
+
+  .quick-opt-modal {
+    width: 100%;
+    max-width: 100%;
+    max-height: 85vh;
+    border-radius: 22px 22px 0 0;
+    border-bottom: none;
+    box-shadow: 0 -8px 30px rgba(0, 0, 0, 0.18);
+    animation: sheetSlideUp 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  @keyframes sheetSlideUp {
+    from {
+      opacity: 0.6;
+      transform: translateY(100%);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  .mobile-sheet-handle {
+    display: block;
+    width: 38px;
+    height: 4px;
+    background: #d8ceca;
+    border-radius: 4px;
+    margin: 8px auto 2px;
+  }
+
+  .quick-modal-head {
+    padding: 10px 16px 14px;
+  }
+
+  .quick-title {
+    font-size: 14px;
+  }
+
+  .quick-modal-body {
+    padding: 14px 16px;
+    gap: 14px;
+  }
+
+  .quick-variants-grid {
+    grid-template-columns: repeat(auto-fill, minmax(84px, 1fr));
+    gap: 8px;
+  }
+
+  .quick-thumb-wrap {
+    width: 38px;
+    height: 38px;
+  }
+
+  .quick-qty-section {
+    flex-direction: row;
+    align-items: center;
+  }
+
+  .btn-quick-add {
+    padding: 13px;
+    font-size: 14px;
+  }
 }
 </style>
