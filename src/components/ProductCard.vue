@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, watch, onUnmounted } from 'vue'
 import { useCartStore } from '@/store/cart'
 import { useFavoritesStore } from '@/store/favorites'
 import { useSettingsStore } from '@/store/settings'
@@ -28,6 +28,93 @@ const remainingStock = computed(() => {
 const showModal = ref(false)
 const selectedModalOpt = ref(null)
 const modalQty = ref(1)
+
+// Lightbox para ver las fotos en grande
+const showLightbox = ref(false)
+const lightboxImage = ref('')
+const lightboxTitle = ref('')
+const lightboxIndex = ref(0)
+
+const modalImagesList = computed(() => {
+  if (props.product.options && props.product.options.length) {
+    return props.product.options.map((opt) => ({
+      image: opt.image,
+      name: opt.name,
+      id: opt.id,
+    }))
+  }
+  if (props.product.images && props.product.images.length) {
+    return props.product.images.map((img, i) => ({
+      image: img,
+      name: `Foto ${i + 1}`,
+      id: `img_${i}`,
+    }))
+  }
+  return [{ image: props.product.image, name: props.product.name, id: 'main' }]
+})
+
+function openLightbox(imgUrl, title = '', index = 0) {
+  lightboxImage.value = imgUrl || selectedModalOpt.value?.image || props.product.image
+  lightboxTitle.value = title || selectedModalOpt.value?.name || props.product.name
+  lightboxIndex.value = typeof index === 'number' && index >= 0 ? index : 0
+  showLightbox.value = true
+}
+
+function openActiveLightbox() {
+  const currentImg = selectedModalOpt.value?.image || props.product.image
+  const currentTitle = selectedModalOpt.value?.name || props.product.name
+  const index = modalImagesList.value.findIndex(
+    (item) => item.id === selectedModalOpt.value?.id || item.image === currentImg
+  )
+  openLightbox(currentImg, currentTitle, index >= 0 ? index : 0)
+}
+
+function closeLightbox() {
+  showLightbox.value = false
+}
+
+function nextLightbox() {
+  if (!modalImagesList.value.length) return
+  lightboxIndex.value = (lightboxIndex.value + 1) % modalImagesList.value.length
+  const current = modalImagesList.value[lightboxIndex.value]
+  lightboxImage.value = current.image
+  lightboxTitle.value = current.name
+}
+
+function prevLightbox() {
+  if (!modalImagesList.value.length) return
+  lightboxIndex.value = (lightboxIndex.value - 1 + modalImagesList.value.length) % modalImagesList.value.length
+  const current = modalImagesList.value[lightboxIndex.value]
+  lightboxImage.value = current.image
+  lightboxTitle.value = current.name
+}
+
+function goToLightboxIndex(idx) {
+  if (idx < 0 || idx >= modalImagesList.value.length) return
+  lightboxIndex.value = idx
+  const current = modalImagesList.value[idx]
+  lightboxImage.value = current.image
+  lightboxTitle.value = current.name
+}
+
+function handleKeydown(e) {
+  if (!showLightbox.value) return
+  if (e.key === 'Escape') closeLightbox()
+  else if (e.key === 'ArrowRight') nextLightbox()
+  else if (e.key === 'ArrowLeft') prevLightbox()
+}
+
+watch(showLightbox, (val) => {
+  if (val) {
+    window.addEventListener('keydown', handleKeydown)
+  } else {
+    window.removeEventListener('keydown', handleKeydown)
+  }
+})
+
+onUnmounted(() => {
+  window.removeEventListener('keydown', handleKeydown)
+})
 
 function getOptionRemaining(opt) {
   if (!opt) return 0
@@ -187,11 +274,24 @@ function handleAddIndividual() {
             <div class="quick-modal-body">
               <!-- Vista previa de la variante seleccionada -->
               <div class="quick-active-preview">
-                <img
-                  :src="resolveImage(selectedModalOpt?.image || product.image)"
-                  :alt="selectedModalOpt?.name || product.name"
-                  class="quick-preview-img"
-                />
+                <div
+                  class="quick-preview-img-box"
+                  role="button"
+                  title="Toca para ver la foto en grande"
+                  aria-label="Ver foto ampliada"
+                  tabindex="0"
+                  @click="openActiveLightbox"
+                  @keydown.enter="openActiveLightbox"
+                >
+                  <img
+                    :src="resolveImage(selectedModalOpt?.image || product.image)"
+                    :alt="selectedModalOpt?.name || product.name"
+                    class="quick-preview-img"
+                  />
+                  <div class="quick-img-zoom-hint" title="Ver en grande">
+                    <AppIcon name="search" :size="11" />
+                  </div>
+                </div>
                 <div class="quick-preview-details">
                   <div class="quick-opt-title-line">
                     <span class="quick-opt-active-name">{{ selectedModalOpt?.name || 'Selecciona una opción' }}</span>
@@ -213,6 +313,15 @@ function handleAddIndividual() {
                     <span v-if="currency.effectiveRate" class="quick-price-bs">
                       (Bs. {{ currency.formatBsNum(product.price) }})
                     </span>
+                    <button
+                      type="button"
+                      class="btn-zoom-inline"
+                      title="Ver foto en tamaño completo"
+                      @click="openActiveLightbox"
+                    >
+                      <AppIcon name="search" :size="11" />
+                      <span>Ver grande</span>
+                    </button>
                   </div>
                 </div>
               </div>
@@ -225,7 +334,7 @@ function handleAddIndividual() {
                 </div>
                 <div class="quick-variants-grid">
                   <button
-                    v-for="opt in product.options"
+                    v-for="(opt, idx) in product.options"
                     :key="opt.id"
                     type="button"
                     class="quick-variant-btn"
@@ -241,6 +350,14 @@ function handleAddIndividual() {
                         <svg width="8" height="7" viewBox="0 0 10 8" fill="none">
                           <path d="M1 4L3.5 6.5L9 1" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
                         </svg>
+                      </span>
+                      <span
+                        class="quick-thumb-zoom-btn"
+                        title="Ver foto grande"
+                        aria-label="Ver foto grande"
+                        @click.stop="openLightbox(opt.image, opt.name, idx)"
+                      >
+                        <AppIcon name="search" :size="9" />
                       </span>
                     </div>
                     <span class="quick-opt-name" :title="opt.name">{{ opt.name }}</span>
@@ -305,6 +422,85 @@ function handleAddIndividual() {
                 <AppIcon name="arrowRight" :size="13" />
               </router-link>
             </div>
+          </div>
+        </div>
+      </Transition>
+    </Teleport>
+
+    <!-- Lightbox Modal para fotos en grande -->
+    <Teleport to="body">
+      <Transition name="lightbox-fade">
+        <div
+          v-if="showLightbox"
+          class="catalog-lightbox-backdrop"
+          role="dialog"
+          aria-modal="true"
+          @click.self="closeLightbox"
+        >
+          <div class="catalog-lightbox-topbar">
+            <div class="lightbox-info">
+              <span class="lightbox-product-title">{{ product.name }}</span>
+              <span v-if="lightboxTitle" class="lightbox-opt-name">• {{ lightboxTitle }}</span>
+              <span v-if="modalImagesList.length > 1" class="lightbox-counter">
+                ({{ lightboxIndex + 1 }} / {{ modalImagesList.length }})
+              </span>
+            </div>
+            <button
+              type="button"
+              class="lightbox-close-btn"
+              title="Cerrar (Esc)"
+              aria-label="Cerrar"
+              @click="closeLightbox"
+            >
+              <AppIcon name="close" :size="20" />
+            </button>
+          </div>
+
+          <div class="catalog-lightbox-content" @click.self="closeLightbox">
+            <button
+              v-if="modalImagesList.length > 1"
+              type="button"
+              class="lightbox-nav-btn prev"
+              aria-label="Foto anterior"
+              title="Anterior"
+              @click.stop="prevLightbox"
+            >
+              <AppIcon name="chevronLeft" :size="24" />
+            </button>
+
+            <div class="lightbox-img-wrapper" @click.self="closeLightbox">
+              <img
+                :src="resolveImage(lightboxImage)"
+                :alt="lightboxTitle || product.name"
+                class="lightbox-main-img"
+              />
+            </div>
+
+            <button
+              v-if="modalImagesList.length > 1"
+              type="button"
+              class="lightbox-nav-btn next"
+              aria-label="Foto siguiente"
+              title="Siguiente"
+              @click.stop="nextLightbox"
+            >
+              <AppIcon name="chevronRight" :size="24" />
+            </button>
+          </div>
+
+          <!-- Miniaturas inferiores para navegar entre fotos en el lightbox -->
+          <div v-if="modalImagesList.length > 1" class="lightbox-thumbs-bar">
+            <button
+              v-for="(item, idx) in modalImagesList"
+              :key="item.id || idx"
+              type="button"
+              class="lightbox-thumb-item"
+              :class="{ active: lightboxIndex === idx }"
+              :title="item.name"
+              @click="goToLightboxIndex(idx)"
+            >
+              <img :src="resolveImage(item.image)" :alt="item.name" />
+            </button>
           </div>
         </div>
       </Transition>
@@ -766,14 +962,52 @@ function handleAddIndividual() {
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.02);
 }
 
-.quick-preview-img {
-  width: 58px;
-  height: 58px;
-  border-radius: 10px;
-  object-fit: cover;
-  border: 1px solid #ece4e0;
+.quick-preview-img-box {
+  position: relative;
+  width: 60px;
+  height: 60px;
+  border-radius: 12px;
+  overflow: hidden;
+  border: 1.5px solid #ece4e0;
   background: #faf7f5;
   flex-shrink: 0;
+  cursor: zoom-in;
+  transition: all 0.2s ease;
+}
+
+.quick-preview-img-box:hover {
+  border-color: #a4425f;
+  transform: scale(1.04);
+  box-shadow: 0 4px 14px rgba(164, 66, 95, 0.16);
+}
+
+.quick-preview-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.quick-img-zoom-hint {
+  position: absolute;
+  bottom: 2px;
+  right: 2px;
+  width: 19px;
+  height: 19px;
+  background: rgba(36, 32, 33, 0.75);
+  backdrop-filter: blur(4px);
+  color: #ffffff;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+  transition: all 0.2s ease;
+}
+
+.quick-preview-img-box:hover .quick-img-zoom-hint {
+  background: #a4425f;
+  transform: scale(1.1);
 }
 
 .quick-preview-details {
@@ -800,8 +1034,31 @@ function handleAddIndividual() {
 
 .quick-price-line {
   display: flex;
-  align-items: baseline;
+  align-items: center;
   gap: 6px;
+  flex-wrap: wrap;
+}
+
+.btn-zoom-inline {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: #fbf6f4;
+  border: 1px solid #f0e6e2;
+  color: #8c7668;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 7px;
+  border-radius: 20px;
+  cursor: pointer;
+  margin-left: auto;
+  transition: all 0.15s ease;
+}
+
+.btn-zoom-inline:hover {
+  background: #ffffff;
+  border-color: #a4425f;
+  color: #a4425f;
 }
 
 .quick-price {
@@ -921,6 +1178,33 @@ function handleAddIndividual() {
   align-items: center;
   justify-content: center;
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.2);
+}
+
+.quick-thumb-zoom-btn {
+  position: absolute;
+  bottom: 2px;
+  left: 2px;
+  width: 16px;
+  height: 16px;
+  background: rgba(36, 32, 33, 0.78);
+  color: #ffffff;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: zoom-in;
+  opacity: 0;
+  transition: all 0.15s ease;
+  z-index: 2;
+}
+
+.quick-variant-btn:hover .quick-thumb-zoom-btn {
+  opacity: 1;
+}
+
+.quick-thumb-zoom-btn:hover {
+  background: #a4425f;
+  transform: scale(1.15);
 }
 
 .quick-opt-name {
@@ -1145,5 +1429,209 @@ function handleAddIndividual() {
     padding: 13px;
     font-size: 14px;
   }
+
+  .catalog-lightbox-backdrop {
+    padding: 10px 12px 16px;
+  }
+  .lightbox-main-img {
+    max-height: 62vh;
+  }
+  .lightbox-nav-btn {
+    width: 38px;
+    height: 38px;
+  }
+  .lightbox-thumb-item {
+    width: 38px;
+    height: 38px;
+  }
+}
+
+/* Lightbox Transitions & Styling */
+.lightbox-fade-enter-active,
+.lightbox-fade-leave-active {
+  transition: opacity 0.25s ease;
+}
+.lightbox-fade-enter-from,
+.lightbox-fade-leave-to {
+  opacity: 0;
+}
+
+.catalog-lightbox-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 100001;
+  background: rgba(14, 11, 12, 0.94);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 16px 20px 24px;
+  box-sizing: border-box;
+}
+
+.catalog-lightbox-topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 4px 10px;
+  color: #ffffff;
+  z-index: 2;
+}
+
+.lightbox-info {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  min-width: 0;
+}
+
+.lightbox-product-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.82);
+}
+
+.lightbox-opt-name {
+  font-size: 14px;
+  font-weight: 700;
+  color: #f6cfb5;
+}
+
+.lightbox-counter {
+  font-size: 11.5px;
+  color: rgba(255, 255, 255, 0.65);
+  background: rgba(255, 255, 255, 0.12);
+  padding: 2px 9px;
+  border-radius: 12px;
+}
+
+.lightbox-close-btn {
+  background: rgba(255, 255, 255, 0.12);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  color: #ffffff;
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  flex-shrink: 0;
+}
+
+.lightbox-close-btn:hover {
+  background: rgba(255, 255, 255, 0.26);
+  transform: scale(1.08);
+}
+
+.catalog-lightbox-content {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  min-height: 0;
+  padding: 12px 0;
+}
+
+.lightbox-img-wrapper {
+  max-width: 90vw;
+  max-height: 72vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.lightbox-main-img {
+  max-width: 100%;
+  max-height: 72vh;
+  object-fit: contain;
+  border-radius: 14px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.65);
+  animation: zoomPop 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes zoomPop {
+  from {
+    opacity: 0.5;
+    transform: scale(0.92);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.lightbox-nav-btn {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  background: rgba(255, 255, 255, 0.14);
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  color: #ffffff;
+  width: 46px;
+  height: 46px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  z-index: 3;
+}
+
+.lightbox-nav-btn:hover {
+  background: rgba(255, 255, 255, 0.3);
+  transform: translateY(-50%) scale(1.08);
+}
+
+.lightbox-nav-btn.prev {
+  left: 12px;
+}
+
+.lightbox-nav-btn.next {
+  right: 12px;
+}
+
+.lightbox-thumbs-bar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 8px 12px;
+  overflow-x: auto;
+  z-index: 2;
+}
+
+.lightbox-thumb-item {
+  width: 44px;
+  height: 44px;
+  border-radius: 8px;
+  overflow: hidden;
+  border: 2px solid transparent;
+  background: rgba(255, 255, 255, 0.1);
+  cursor: pointer;
+  padding: 0;
+  opacity: 0.55;
+  transition: all 0.2s ease;
+  flex-shrink: 0;
+}
+
+.lightbox-thumb-item img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.lightbox-thumb-item.active,
+.lightbox-thumb-item:hover {
+  opacity: 1;
+  border-color: #a4425f;
+  transform: translateY(-2px);
 }
 </style>
