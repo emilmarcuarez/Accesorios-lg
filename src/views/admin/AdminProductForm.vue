@@ -388,58 +388,6 @@ async function save() {
           Sube todas las fotos que desees. La foto #1 será la portada principal del producto.
         </p>
 
-        <!-- Configuración de Opciones / Variantes individuales por foto -->
-        <div v-if="form.has_options && form.images.length" class="options-mgr-card">
-          <div class="options-mgr-head">
-            <div>
-              <h3 class="options-mgr-title">Stock y nombre de cada opción</h3>
-              <p class="options-mgr-sub">Asigna el nombre (ej. tono, color) y la cantidad que tienes de cada foto:</p>
-            </div>
-            <div class="options-total-pill">
-              Stock total: <strong>{{ totalOptionsStock }}</strong>
-            </div>
-          </div>
-
-          <div class="options-mgr-list">
-            <div
-              v-for="(imgUrl, idx) in form.images"
-              :key="idx"
-              class="opt-item"
-              :class="{ 'opt-zero': (form.options[idx]?.stock || 0) <= 0 }"
-            >
-              <div class="opt-preview">
-                <img :src="resolveImage(imgUrl)" :alt="`Foto ${idx + 1}`" />
-                <span class="opt-badge-idx">#{{ idx + 1 }}</span>
-              </div>
-              <div class="opt-inputs">
-                <div class="opt-field-group">
-                  <label class="opt-label">Nombre / Tono / Modelo:</label>
-                  <input
-                    v-if="form.options[idx]"
-                    v-model="form.options[idx].name"
-                    type="text"
-                    class="opt-input"
-                    :placeholder="`Ej: Tono ${idx + 1}`"
-                  />
-                </div>
-                <div class="opt-field-group opt-stock-group">
-                  <label class="opt-label">Stock disponible:</label>
-                  <div class="opt-stock-wrap">
-                    <input
-                      v-if="form.options[idx]"
-                      v-model.number="form.options[idx].stock"
-                      type="number"
-                      min="0"
-                      class="opt-input opt-stock-input"
-                    />
-                    <span v-if="(form.options[idx]?.stock || 0) <= 0" class="stock-state out">Agotado</span>
-                    <span v-else class="stock-state in">{{ form.options[idx]?.stock }} disp.</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
       </div>
 
       <!-- Columna de Datos del Producto -->
@@ -508,16 +456,138 @@ async function save() {
             <input v-model="form.is_new" type="checkbox" /> Nuevo
           </label>
         </div>
+      </div>
+    </div>
 
-        <div class="form-actions">
-          <button class="admin-btn admin-btn-ghost" @click="router.push('/admin/productos')">
-            Cancelar
-          </button>
-          <button class="admin-btn" :disabled="saving || uploading" @click="save">
-            {{ saving ? 'Guardando...' : 'Guardar producto' }}
-          </button>
+    <!-- Gestor de Variantes / Opciones a todo lo ancho -->
+    <div v-if="form.has_options && form.images.length" class="options-full-section">
+      <div class="options-section-header">
+        <div class="options-title-block">
+          <div class="options-title-line">
+            <span class="options-icon">🎨</span>
+            <h3 class="options-main-title">Stock y nombre de cada opción</h3>
+          </div>
+          <p class="options-main-desc">
+            Asigna el nombre (ej. tono, color, modelo) y la cantidad que tienes disponible de cada foto:
+          </p>
+        </div>
+        <div class="options-total-badge">
+          <span class="badge-label">Stock total:</span>
+          <strong class="badge-count">{{ totalOptionsStock }} unidades</strong>
         </div>
       </div>
+
+      <div class="options-cards-grid">
+        <div
+          v-for="(imgUrl, idx) in form.images"
+          :key="idx"
+          class="variant-edit-card"
+          :class="{ 'is-exhausted': (form.options[idx]?.stock || 0) <= 0 }"
+        >
+          <div class="card-visual-row">
+            <div class="card-photo-box">
+              <img :src="resolveImage(imgUrl)" :alt="`Foto ${idx + 1}`" />
+              <span class="card-index-tag">#{{ idx + 1 }}</span>
+            </div>
+            <div class="card-header-meta">
+              <div class="meta-tags-row">
+                <span v-if="idx === 0" class="tag-primary-badge">⭐ Portada</span>
+                <span v-if="(form.options[idx]?.stock || 0) <= 0" class="stock-pill-state out">
+                  ✕ Agotado
+                </span>
+                <span v-else class="stock-pill-state in">
+                  ● {{ form.options[idx]?.stock }} disp.
+                </span>
+              </div>
+              <span class="card-photo-name-preview">
+                {{ form.options[idx]?.name || `Opción ${idx + 1}` }}
+              </span>
+            </div>
+          </div>
+
+          <div class="card-inputs-area">
+            <div class="input-group">
+              <label class="input-label">Nombre de la opción / tono:</label>
+              <input
+                v-if="form.options[idx]"
+                v-model="form.options[idx].name"
+                type="text"
+                class="variant-input"
+                :placeholder="`Ej: Tono ${idx + 1}, Rosa, Dorado...`"
+              />
+            </div>
+
+            <div class="input-group">
+              <div class="stock-label-bar">
+                <label class="input-label">Stock de esta foto:</label>
+                <div class="quick-stock-actions">
+                  <button
+                    type="button"
+                    class="quick-pill-btn"
+                    title="Poner en 0 (Agotar)"
+                    @click="form.options[idx].stock = 0"
+                  >
+                    Agotar (0)
+                  </button>
+                  <button
+                    type="button"
+                    class="quick-pill-btn"
+                    title="Añadir 1"
+                    @click="form.options[idx].stock = (form.options[idx].stock || 0) + 1"
+                  >
+                    +1
+                  </button>
+                  <button
+                    type="button"
+                    class="quick-pill-btn"
+                    title="Añadir 5"
+                    @click="form.options[idx].stock = (form.options[idx].stock || 0) + 5"
+                  >
+                    +5
+                  </button>
+                </div>
+              </div>
+
+              <div class="stepper-box">
+                <button
+                  type="button"
+                  class="stepper-btn"
+                  :disabled="(form.options[idx]?.stock || 0) <= 0"
+                  aria-label="Menos"
+                  @click="form.options[idx].stock = Math.max(0, (form.options[idx].stock || 0) - 1)"
+                >
+                  <AppIcon name="minus" :size="14" />
+                </button>
+                <input
+                  v-if="form.options[idx]"
+                  v-model.number="form.options[idx].stock"
+                  type="number"
+                  min="0"
+                  class="stepper-number"
+                />
+                <button
+                  type="button"
+                  class="stepper-btn"
+                  aria-label="Más"
+                  @click="form.options[idx].stock = (form.options[idx].stock || 0) + 1"
+                >
+                  <AppIcon name="plus" :size="14" />
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Botones de Guardar y Cancelar al pie -->
+    <div class="form-bottom-actions">
+      <button class="admin-btn admin-btn-ghost" @click="router.push('/admin/productos')">
+        Cancelar
+      </button>
+      <button class="admin-btn" :disabled="saving || uploading" @click="save">
+        {{ saving ? 'Guardando...' : 'Guardar producto' }}
+      </button>
     </div>
   </div>
 </template>
@@ -663,175 +733,322 @@ async function save() {
   gap: 18px;
 }
 
-/* Opciones / Variantes Manager Card */
-.options-mgr-card {
+/* Sección de Variantes a todo lo ancho */
+.options-full-section {
+  margin-top: 32px;
+  padding: 24px;
   background: #ffffff;
   border: 1.5px solid #f1e2e6;
-  border-radius: 12px;
-  padding: 16px;
-  margin-top: 8px;
-  box-shadow: 0 2px 10px rgba(217, 109, 139, 0.05);
+  border-radius: 16px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.03);
 }
 
-.options-mgr-head {
+.options-section-header {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: space-between;
-  gap: 10px;
-  padding-bottom: 12px;
-  margin-bottom: 12px;
+  margin-bottom: 20px;
+  padding-bottom: 16px;
   border-bottom: 1px solid #fce8ed;
+  flex-wrap: wrap;
+  gap: 14px;
 }
 
-.options-mgr-title {
-  font-size: 13.5px;
+.options-title-line {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.options-icon {
+  font-size: 20px;
+}
+
+.options-main-title {
+  font-family: var(--font-body);
+  font-size: 16px;
   font-weight: 700;
   color: #111111;
-  margin: 0 0 2px 0;
-}
-
-.options-mgr-sub {
-  font-size: 11.5px;
-  color: #777777;
   margin: 0;
 }
 
-.options-total-pill {
-  font-size: 11.5px;
+.options-main-desc {
+  font-size: 13px;
+  color: #777777;
+  margin: 4px 0 0 0;
+}
+
+.options-total-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
   background: #111111;
   color: #ffffff;
-  padding: 4px 10px;
-  border-radius: 20px;
-  white-space: nowrap;
+  padding: 8px 16px;
+  border-radius: 30px;
+  font-size: 13px;
 }
 
-.options-total-pill strong {
-  color: #55f1aa;
+.options-total-badge .badge-label {
+  color: rgba(255, 255, 255, 0.75);
 }
 
-.options-mgr-list {
+.options-total-badge .badge-count {
+  color: #4ade80;
+  font-weight: 700;
+  font-size: 14px;
+}
+
+.options-cards-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 18px;
+}
+
+.variant-edit-card {
+  background: #faf8f9;
+  border: 1.5px solid #ebd9df;
+  border-radius: 12px;
+  padding: 16px;
   display: flex;
   flex-direction: column;
-  gap: 12px;
-  max-height: 480px;
-  overflow-y: auto;
-  padding-right: 4px;
-}
-
-.options-mgr-list::-webkit-scrollbar {
-  width: 4px;
-}
-
-.options-mgr-list::-webkit-scrollbar-thumb {
-  background: #e0e0e0;
-  border-radius: 4px;
-}
-
-.opt-item {
-  display: grid;
-  grid-template-columns: 60px 1fr;
-  gap: 12px;
-  align-items: center;
-  background: #fafafa;
-  border: 1px solid #e8e8e8;
-  border-radius: 8px;
-  padding: 8px 10px;
+  gap: 14px;
   transition: all 0.2s ease;
 }
 
-.opt-item:hover {
+.variant-edit-card:hover {
   border-color: #111111;
   background: #ffffff;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.06);
+  transform: translateY(-2px);
 }
 
-.opt-item.opt-zero {
+.variant-edit-card.is-exhausted {
   border-color: #fca5a5;
   background: #fff8f8;
 }
 
-.opt-preview {
+.card-visual-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.card-photo-box {
   position: relative;
   width: 60px;
   height: 60px;
-  border-radius: 6px;
+  border-radius: 10px;
   overflow: hidden;
-  border: 1px solid #e0e0e0;
+  border: 1.5px solid #e0e0e0;
   background: #f0f0f0;
+  flex-shrink: 0;
 }
 
-.opt-preview img {
+.card-photo-box img {
   width: 100%;
   height: 100%;
   object-fit: cover;
 }
 
-.opt-badge-idx {
+.card-index-tag {
   position: absolute;
-  top: 2px;
-  left: 2px;
-  background: rgba(0, 0, 0, 0.7);
+  bottom: 2px;
+  right: 2px;
+  background: rgba(0, 0, 0, 0.75);
   color: #ffffff;
   font-size: 9.5px;
   font-weight: 700;
-  padding: 1px 4px;
-  border-radius: 3px;
+  padding: 1px 5px;
+  border-radius: 4px;
 }
 
-.opt-inputs {
+.card-header-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex: 1;
+  min-width: 0;
+}
+
+.meta-tags-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.tag-primary-badge {
+  font-size: 10.5px;
+  font-weight: 700;
+  background: #fff3bf;
+  color: #d97706;
+  padding: 2px 7px;
+  border-radius: 4px;
+}
+
+.stock-pill-state {
+  font-size: 11px;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 999px;
+}
+
+.stock-pill-state.in {
+  background: #dcfce7;
+  color: #15803d;
+}
+
+.stock-pill-state.out {
+  background: #fee2e2;
+  color: #b91c1c;
+}
+
+.card-photo-name-preview {
+  font-size: 13.5px;
+  font-weight: 700;
+  color: #111111;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.card-inputs-area {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.input-group {
   display: flex;
   flex-direction: column;
   gap: 6px;
 }
 
-.opt-field-group {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.opt-label {
-  font-size: 11px;
+.input-label {
+  font-size: 12px;
   font-weight: 600;
-  color: #555555;
-  white-space: nowrap;
-  min-width: 110px;
+  color: #444444;
 }
 
-.opt-input {
-  flex: 1;
-  font-size: 12.5px;
-  padding: 5px 8px !important;
-  border-radius: 6px !important;
+.variant-input {
+  width: 100% !important;
+  box-sizing: border-box !important;
+  border: 1.5px solid #dcdcdc !important;
+  border-radius: 8px !important;
+  padding: 9px 12px !important;
+  font-size: 13.5px !important;
+  color: #111111 !important;
   background: #ffffff !important;
+  outline: none !important;
+  transition: all 0.2s ease !important;
 }
 
-.opt-stock-wrap {
+.variant-input:focus {
+  border-color: #111111 !important;
+  box-shadow: 0 0 0 3px rgba(0, 0, 0, 0.06) !important;
+}
+
+.stock-label-bar {
   display: flex;
   align-items: center;
+  justify-content: space-between;
   gap: 8px;
-  flex: 1;
+  flex-wrap: wrap;
 }
 
-.opt-stock-input {
-  max-width: 80px;
-  font-weight: 700;
+.quick-stock-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
 }
 
-.stock-state {
-  font-size: 10.5px;
-  font-weight: 700;
-  padding: 2px 7px;
+.quick-pill-btn {
+  background: #ffffff;
+  border: 1px solid #dcdcdc;
   border-radius: 4px;
+  font-size: 10px;
+  font-weight: 600;
+  color: #666666;
+  padding: 2px 6px;
+  cursor: pointer;
+  transition: all 0.15s ease;
 }
 
-.stock-state.in {
-  background: #dcfce7;
-  color: #166534;
+.quick-pill-btn:hover {
+  border-color: #111111;
+  color: #111111;
+  background: #f5f5f5;
 }
 
-.stock-state.out {
-  background: #fee2e2;
-  color: #b91c1c;
+.stepper-box {
+  display: flex;
+  align-items: center;
+  background: #ffffff;
+  border: 1.5px solid #dcdcdc;
+  border-radius: 8px;
+  overflow: hidden;
+  width: 100%;
+  box-sizing: border-box;
+  transition: border-color 0.2s ease;
+}
+
+.stepper-box:focus-within {
+  border-color: #111111;
+  box-shadow: 0 0 0 3px rgba(0, 0, 0, 0.06);
+}
+
+.stepper-btn {
+  width: 42px;
+  height: 38px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: none;
+  color: #333333;
+  cursor: pointer;
+  transition: background 0.15s ease;
+  flex-shrink: 0;
+}
+
+.stepper-btn:hover:not(:disabled) {
+  background: #f0f0f0;
+}
+
+.stepper-btn:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+.stepper-number {
+  flex: 1;
+  min-width: 0;
+  border: none !important;
+  background: transparent !important;
+  text-align: center;
+  font-size: 15px;
+  font-weight: 700;
+  color: #111111;
+  padding: 6px 0 !important;
+  outline: none !important;
+  -moz-appearance: textfield;
+}
+
+.stepper-number::-webkit-outer-spin-button,
+.stepper-number::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+.form-bottom-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 12px;
+  margin-top: 32px;
+  padding-top: 22px;
+  border-top: 1.5px solid #f1e2e6;
 }
 
 /* Stock Auto Box */
@@ -1281,12 +1498,20 @@ async function save() {
   .form-page-title {
     font-size: 20px;
   }
-  .form-actions {
+  .options-full-section {
+    padding: 16px 12px;
+    margin-top: 24px;
+  }
+  .options-cards-grid {
+    grid-template-columns: 1fr;
+    gap: 14px;
+  }
+  .form-bottom-actions {
     flex-direction: column-reverse;
-    gap: 8px;
+    gap: 10px;
     width: 100%;
   }
-  .form-actions button {
+  .form-bottom-actions button {
     width: 100%;
     justify-content: center;
   }
