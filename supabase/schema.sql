@@ -54,7 +54,7 @@ create table if not exists public.products (
   old_price numeric(10,2),
   discount int not null default 0,
   stock int not null default 0,
-  image text,
+  image text, -- URL individual o JSON array con múltiples URLs ('["url1","url2"]')
   rating numeric(2,1) not null default 5,
   is_new boolean not null default false,
   featured boolean not null default false,

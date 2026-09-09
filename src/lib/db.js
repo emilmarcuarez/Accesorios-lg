@@ -1,4 +1,5 @@
 import { supabase } from '@/lib/supabase'
+import { parseProductImages } from '@/utils/image'
 
 export async function listProducts() {
   if (!supabase) return { data: [], error: 'Supabase no configurado' }
@@ -18,9 +19,90 @@ export async function updateProduct(id, patch) {
   return supabase.from('products').update(patch).eq('id', id).select().single()
 }
 
-export async function deleteProduct(id) {
+export async function deleteProductImage(url) {
+  if (!url) return
+  try {
+    // Si viene dentro de un src de /api/img
+    if (url.includes('src=')) {
+      const match = url.match(/src=([^&]+)/)
+      if (match) url = decodeURIComponent(match[1])
+    }
+
+    // Servidor de fotos (x02.me / subdominios propios ej. emilmarpatricia.x02.me/i/...)
+    if (url.includes('/i/') || url.includes('x02.me')) {
+      let fileName = ''
+      if (url.includes('/i/')) {
+        fileName = url.split('/i/')[1].split('?')[0]
+      } else {
+        fileName = url.split('/').pop().split('?')[0]
+      }
+
+      const key = import.meta.env.VITE_X02 || 'af5094f4148e430a96985bfe1e47090e'
+
+      // 1. Eliminar a través de nuestro endpoint proxy /api/delete
+      try {
+        await fetch(`/api/delete?url=${encodeURIComponent(url)}`, { method: 'POST' })
+      } catch {}
+
+      // 2. Eliminar vía DELETE en la API del servidor de fotos
+      if (fileName) {
+        try {
+          await fetch(`https://x02.me/api/user/images/${fileName}`, {
+            method: 'DELETE',
+            headers: { 'x-api-key': key },
+          })
+        } catch {}
+
+        // 3. Eliminar vía GET endpoint de eliminación
+        try {
+          await fetch(`https://x02.me/api/delete/${fileName}?apiKey=${key}`)
+        } catch {}
+      }
+    }
+  } catch (err) {
+    console.warn('Error al eliminar imagen del servidor de fotos:', err)
+  }
+}
+
+export async function deleteProductImages(urls) {
+  if (!urls) return
+  const list = Array.isArray(urls) ? urls : [urls]
+  await Promise.all(list.map((u) => deleteProductImage(u)))
+}
+
+export async function deleteProduct(id, knownImages = null) {
   if (!supabase) return { error: 'Supabase no configurado' }
-  return supabase.from('products').delete().eq('id', id)
+
+  try {
+    let imagesToDelete = []
+
+    if (knownImages) {
+      imagesToDelete = parseProductImages(knownImages)
+    } else {
+      // Consultar el producto antes de borrarlo para rescatar las fotos a eliminar
+      const { data: prod } = await supabase
+        .from('products')
+        .select('image')
+        .eq('id', id)
+        .single()
+      if (prod?.image) {
+        imagesToDelete = parseProductImages(prod.image)
+      }
+    }
+
+    // 1. Eliminar el registro en la base de datos
+    const res = await supabase.from('products').delete().eq('id', id)
+
+    // 2. Si se eliminó correctamente, eliminar todas sus fotos de los servidores
+    if (!res.error && imagesToDelete.length > 0) {
+      await deleteProductImages(imagesToDelete)
+    }
+
+    return res
+  } catch (err) {
+    console.warn('Error al eliminar producto con fotos:', err)
+    return supabase.from('products').delete().eq('id', id)
+  }
 }
 
 export async function listCategories() {
@@ -316,42 +398,7 @@ export async function uploadImage(file) {
     } catch { }
   }
 
-  // 3. Fallback de alta disponibilidad: Supabase Storage
-  if (supabase) {
-    try {
-      const fileExt = (file.name.split('.').pop() || 'jpg').toLowerCase()
-      const cleanName = file.name
-        .replace(/\.[^/.]+$/, '')
-        .replace(/[^a-zA-Z0-9_-]/g, '_')
-        .slice(0, 30)
-      const fileName = `img_${Date.now()}_${cleanName}.${fileExt}`
-
-      let uploadRes = await supabase.storage
-        .from('images')
-        .upload(fileName, file, { cacheControl: '3600', upsert: true })
-
-      let bucketUsed = 'images'
-      if (uploadRes.error) {
-        uploadRes = await supabase.storage
-          .from('hero-videos')
-          .upload(fileName, file, { cacheControl: '3600', upsert: true })
-        bucketUsed = 'hero-videos'
-      }
-
-      if (!uploadRes.error) {
-        const { data: publicData } = supabase.storage
-          .from(bucketUsed)
-          .getPublicUrl(fileName)
-        if (publicData?.publicUrl) {
-          return { url: publicData.publicUrl }
-        }
-      }
-    } catch (err) {
-      console.warn('Error al subir a Supabase Storage:', err)
-    }
-  }
-
-  return { error: 'No se pudo subir la imagen. Por favor intenta de nuevo.' }
+  return { error: 'No se pudo subir la imagen al servidor de fotos. Por favor intenta de nuevo.' }
 }
 
 export async function uploadHeroMedia(file, previousUrl = null) {

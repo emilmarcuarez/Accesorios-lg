@@ -33,7 +33,21 @@ const remainingStock = computed(() => {
         :alt="product.name"
         :style="{ objectPosition: product.pos }"
         loading="lazy"
+        class="card-img card-img-primary"
       />
+      <img
+        v-if="product.images && product.images.length > 1"
+        :src="resolveImage(product.images[1])"
+        :alt="product.name"
+        :style="{ objectPosition: product.pos }"
+        loading="lazy"
+        class="card-img card-img-secondary"
+      />
+      <div v-if="product.images && product.images.length > 1" class="multi-photos-dots">
+        <span class="dot active"></span>
+        <span class="dot"></span>
+        <span v-if="product.images.length > 2" class="dot"></span>
+      </div>
       <div class="card-badges">
         <span v-if="product.discount" class="tag tag-discount">-{{ product.discount }}% OFF</span>
         <span v-if="product.isNew" class="tag tag-new">Nuevo</span>
@@ -115,11 +129,58 @@ const remainingStock = computed(() => {
   width: 100%;
   height: 100%;
   object-fit: cover;
-  transition: transform 0.5s ease;
+  transition: transform 0.5s ease, opacity 0.4s ease;
 }
 
-.card:hover .card-media img {
+.card-img-secondary {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.card:hover .card-img-primary {
   transform: scale(1.07);
+}
+
+.card:hover .card-img-secondary {
+  opacity: 1;
+  transform: scale(1.07);
+}
+
+.multi-photos-dots {
+  position: absolute;
+  bottom: 8px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  background: rgba(18, 18, 20, 0.5);
+  backdrop-filter: blur(4px);
+  padding: 3px 6px;
+  border-radius: 10px;
+  z-index: 2;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+.card:hover .multi-photos-dots {
+  opacity: 1;
+}
+
+.multi-photos-dots .dot {
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.6);
+}
+
+.multi-photos-dots .dot.active {
+  background: #ffffff;
+  width: 10px;
+  border-radius: 4px;
 }
 
 .card-badges {

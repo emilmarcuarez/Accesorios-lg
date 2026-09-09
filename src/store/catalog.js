@@ -1,5 +1,6 @@
 import { defineStore } from 'pinia'
 import { listProducts, listCategories } from '@/lib/db'
+import { parseProductImages } from '@/utils/image'
 
 function mapProduct(p, categoriesMap = {}) {
   const price = Number(p.price) || 0
@@ -20,6 +21,9 @@ function mapProduct(p, categoriesMap = {}) {
   const discountAmount =
     discount > 0 ? Number((price - effectivePrice).toFixed(2)) : 0
 
+  const images = parseProductImages(p.image)
+  const mainImage = images[0] || (typeof p.image === 'string' && !p.image.startsWith('[') ? p.image : '')
+
   return {
     id: p.id,
     name: p.name,
@@ -34,7 +38,8 @@ function mapProduct(p, categoriesMap = {}) {
     discountAmount,
     discountSource,
     stock: p.stock ?? 0,
-    image: p.image || '',
+    image: mainImage,
+    images: images.length ? images : (mainImage ? [mainImage] : []),
     pos: 'center',
     rating: p.rating || 5,
     reviews: 0,

@@ -15,6 +15,105 @@ const catalog = useCatalogStore()
 const currency = useCurrencyStore()
 const qty = ref(1)
 
+// Multi-Image Gallery State
+const activeImageIndex = ref(0)
+const isGalleryPaused = ref(false)
+const thumbStrip = ref(null)
+let autoSlideTimer = null
+
+const product = computed(() => catalog.byId(route.params.id))
+const related = computed(() =>
+  catalog.products.filter((p) => p.category === product.value?.category && p.id !== product.value?.id).slice(0, 4),
+)
+
+const productImages = computed(() => {
+  if (!product.value) return []
+  if (Array.isArray(product.value.images) && product.value.images.length > 0) {
+    return product.value.images
+  }
+  return product.value.image ? [product.value.image] : []
+})
+
+const currentImage = computed(() => {
+  if (!productImages.value.length) return ''
+  return productImages.value[activeImageIndex.value] || productImages.value[0] || ''
+})
+
+function selectImage(idx) {
+  activeImageIndex.value = idx
+  resetAutoSlide()
+}
+
+function nextImage(e) {
+  if (e) e.stopPropagation()
+  if (productImages.value.length <= 1) return
+  activeImageIndex.value = (activeImageIndex.value + 1) % productImages.value.length
+  resetAutoSlide()
+}
+
+function prevImage(e) {
+  if (e) e.stopPropagation()
+  if (productImages.value.length <= 1) return
+  activeImageIndex.value =
+    (activeImageIndex.value - 1 + productImages.value.length) % productImages.value.length
+  resetAutoSlide()
+}
+
+function startAutoSlide() {
+  stopAutoSlide()
+  if (productImages.value.length <= 1) return
+  autoSlideTimer = setInterval(() => {
+    if (!isGalleryPaused.value && !isZoomOpen.value && productImages.value.length > 1) {
+      activeImageIndex.value = (activeImageIndex.value + 1) % productImages.value.length
+    }
+  }, 4000)
+}
+
+function stopAutoSlide() {
+  if (autoSlideTimer) {
+    clearInterval(autoSlideTimer)
+    autoSlideTimer = null
+  }
+}
+
+function resetAutoSlide() {
+  stopAutoSlide()
+  startAutoSlide()
+}
+
+function onGalleryMouseEnter() {
+  isGalleryPaused.value = true
+}
+
+function onGalleryMouseLeave() {
+  isGalleryPaused.value = false
+}
+
+// Touch swipe gestures on mobile
+let touchStartX = 0
+let touchEndX = 0
+
+function onGalleryTouchStart(e) {
+  if (e.touches.length === 1) {
+    touchStartX = e.touches[0].clientX
+    isGalleryPaused.value = true
+  }
+}
+
+function onGalleryTouchEnd(e) {
+  if (e.changedTouches.length === 1) {
+    touchEndX = e.changedTouches[0].clientX
+    const diff = touchStartX - touchEndX
+    if (Math.abs(diff) > 35) {
+      if (diff > 0) nextImage()
+      else prevImage()
+    }
+    setTimeout(() => {
+      isGalleryPaused.value = false
+    }, 1200)
+  }
+}
+
 // Zoom Modal State
 const isZoomOpen = ref(false)
 const zoomScale = ref(1)
@@ -24,7 +123,7 @@ const dragStart = ref({ x: 0, y: 0 })
 const startOffset = ref({ x: 0, y: 0 })
 
 function openZoom() {
-  if (!product.value?.image) return
+  if (!currentImage.value) return
   isZoomOpen.value = true
   zoomScale.value = 1
   panOffset.value = { x: 0, y: 0 }
@@ -114,13 +213,12 @@ function onTouchMove(e) {
 function onKeydown(e) {
   if (e.key === 'Escape' && isZoomOpen.value) {
     closeZoom()
+  } else if (e.key === 'ArrowRight') {
+    nextImage()
+  } else if (e.key === 'ArrowLeft') {
+    prevImage()
   }
 }
-
-const product = computed(() => catalog.byId(route.params.id))
-const related = computed(() =>
-  catalog.products.filter((p) => p.category === product.value?.category && p.id !== product.value?.id).slice(0, 4),
-)
 
 const inStock = computed(() => (product.value?.stock ?? 0) > 0)
 const remainingStock = computed(() => {
@@ -153,17 +251,44 @@ watch(
   () => route.params.id,
   () => {
     qty.value = 1
+    activeImageIndex.value = 0
+    resetAutoSlide()
+  },
+)
+
+watch(
+  () => productImages.value.length,
+  () => {
+    if (activeImageIndex.value >= productImages.value.length) {
+      activeImageIndex.value = 0
+    }
+    resetAutoSlide()
+  },
+)
+
+watch(
+  () => activeImageIndex.value,
+  (idx) => {
+    if (thumbStrip.value && thumbStrip.value.children[idx]) {
+      thumbStrip.value.children[idx].scrollIntoView({
+        behavior: 'smooth',
+        inline: 'center',
+        block: 'nearest',
+      })
+    }
   },
 )
 
 onMounted(() => {
   catalog.fetch()
   window.addEventListener('keydown', onKeydown)
+  startAutoSlide()
 })
 
 onUnmounted(() => {
   window.removeEventListener('keydown', onKeydown)
   document.body.style.overflow = ''
+  stopAutoSlide()
 })
 </script>
 
@@ -178,20 +303,93 @@ onUnmounted(() => {
       </nav>
 
       <div class="product-layout">
-        <div class="product-image" data-aos="fade-right" @click="openZoom" title="Haz clic para ampliar la imagen">
-          <img :src="resolveImage(product.image)" :alt="product.name" />
-          <div class="zoom-indicator">
-            <AppIcon name="search" :size="15" />
-            <span>Ver foto / Zoom</span>
+        <!-- Columna de Fotos / Galería Interactiva -->
+        <div class="product-media-col" data-aos="fade-right">
+          <div
+            class="product-image"
+            @click="openZoom"
+            @mouseenter="onGalleryMouseEnter"
+            @mouseleave="onGalleryMouseLeave"
+            @touchstart.passive="onGalleryTouchStart"
+            @touchend.passive="onGalleryTouchEnd"
+            title="Haz clic para ampliar la imagen"
+          >
+            <!-- Imagen Principal -->
+            <transition name="fade-img" mode="out-in">
+              <img
+                :key="currentImage"
+                :src="resolveImage(currentImage)"
+                :alt="`${product.name} - foto ${activeImageIndex + 1}`"
+                class="main-img"
+              />
+            </transition>
+
+            <!-- Badges superiores (Stock y Descuento) -->
+            <div class="product-image-badges">
+              <span class="stock-pill-badge" :class="{ out: !inStock }">
+                <span class="stock-dot"></span>
+                {{ inStock ? 'En stock' : 'Agotado' }}
+              </span>
+              <span v-if="product.discount" class="tag tag-discount">-{{ product.discount }}% OFF</span>
+            </div>
+
+            <!-- Flechas de navegación (si hay más de 1 imagen) -->
+            <template v-if="productImages.length > 1">
+              <button
+                type="button"
+                class="gallery-arrow arrow-prev"
+                aria-label="Foto anterior"
+                title="Foto anterior"
+                @click.stop="prevImage"
+              >
+                <AppIcon name="chevronLeft" :size="20" />
+              </button>
+              <button
+                type="button"
+                class="gallery-arrow arrow-next"
+                aria-label="Siguiente foto"
+                title="Siguiente foto"
+                @click.stop="nextImage"
+              >
+                <AppIcon name="chevronRight" :size="20" />
+              </button>
+            </template>
+
+            <!-- Contador de fotos estilo reyesboutique (ej: 5 / 7) -->
+            <div v-if="productImages.length > 1" class="photo-counter-pill">
+              {{ activeImageIndex + 1 }} / {{ productImages.length }}
+            </div>
+
+            <div class="zoom-indicator">
+              <AppIcon name="search" :size="14" />
+              <span>Zoom</span>
+            </div>
           </div>
-          <div class="product-image-badges">
-            <span v-if="product.discount" class="tag tag-discount">-{{ product.discount }}% OFF</span>
+
+          <!-- Carrusel de Miniaturas debajo de la foto principal (Idéntico a la imagen enviada por el usuario) -->
+          <div
+            v-if="productImages.length > 1"
+            class="thumbnails-wrapper"
+            @mouseenter="onGalleryMouseEnter"
+            @mouseleave="onGalleryMouseLeave"
+          >
+            <div class="thumbnails-track" ref="thumbStrip">
+              <button
+                v-for="(img, idx) in productImages"
+                :key="idx"
+                type="button"
+                class="thumb-item"
+                :class="{ active: idx === activeImageIndex }"
+                :aria-label="`Ver foto ${idx + 1}`"
+                @click="selectImage(idx)"
+              >
+                <img :src="resolveImage(img)" :alt="`${product.name} miniatura ${idx + 1}`" />
+              </button>
+            </div>
           </div>
-          <span class="stock-badge" :class="{ out: !inStock }">
-            {{ inStock ? `En stock · ${product.stock} uds` : 'Agotado' }}
-          </span>
         </div>
 
+        <!-- Columna de Información del Producto -->
         <div class="product-info" data-aos="fade-left">
           <span class="eyebrow">{{ product.categoryName }}</span>
           <h1 class="product-name">{{ product.name }}</h1>
@@ -282,6 +480,9 @@ onUnmounted(() => {
           <div class="zoom-topbar">
             <div class="zoom-title">
               <span>{{ product.name }}</span>
+              <span v-if="productImages.length > 1" class="zoom-counter">
+                ({{ activeImageIndex + 1 }} / {{ productImages.length }})
+              </span>
             </div>
             <div class="zoom-controls">
               <button
@@ -332,8 +533,26 @@ onUnmounted(() => {
             @touchend="stopDrag"
             @dblclick="toggleZoom"
           >
+            <!-- Navegación dentro del lightbox -->
+            <template v-if="productImages.length > 1 && zoomScale <= 1.1">
+              <button
+                class="zoom-nav-btn prev"
+                aria-label="Foto anterior"
+                @click.stop="prevImage"
+              >
+                <AppIcon name="chevronLeft" :size="26" />
+              </button>
+              <button
+                class="zoom-nav-btn next"
+                aria-label="Foto siguiente"
+                @click.stop="nextImage"
+              >
+                <AppIcon name="chevronRight" :size="26" />
+              </button>
+            </template>
+
             <img
-              :src="resolveImage(product.image)"
+              :src="resolveImage(currentImage)"
               :alt="product.name"
               class="zoom-img"
               :style="{
@@ -345,7 +564,7 @@ onUnmounted(() => {
           </div>
 
           <div class="zoom-hint-bottom">
-            <span>Doble clic para {{ zoomScale > 1.2 ? 'restablecer' : 'acercar' }} · Rueda del mouse para zoom · Arrastra para mover la imagen</span>
+            <span>Doble clic para {{ zoomScale > 1.2 ? 'restablecer' : 'acercar' }} · Rueda del mouse para zoom · Flechas para cambiar de foto</span>
           </div>
         </div>
       </Transition>
@@ -395,70 +614,178 @@ onUnmounted(() => {
   align-items: start;
 }
 
+/* Columna de Medios / Galería */
+.product-media-col {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
 .product-image {
   position: relative;
   border-radius: var(--radius-lg);
   overflow: hidden;
   background: var(--rose-50);
   cursor: zoom-in;
+  aspect-ratio: 1;
+  max-height: 540px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
 }
 
-.product-image img {
+.product-image .main-img {
   width: 100%;
-  height: 540px;
+  height: 100%;
   object-fit: cover;
+  display: block;
   transition: transform 0.35s ease;
 }
 
-.product-image:hover img {
+.product-image:hover .main-img {
   transform: scale(1.025);
+}
+
+.fade-img-enter-active,
+.fade-img-leave-active {
+  transition: opacity 0.22s ease;
+}
+
+.fade-img-enter-from,
+.fade-img-leave-to {
+  opacity: 0.6;
+}
+
+/* Flechas de Navegación */
+.gallery-arrow {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.92);
+  color: #111111;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.18);
+  transition: all 0.2s ease;
+  z-index: 3;
+  opacity: 0;
+  backdrop-filter: blur(4px);
+}
+
+.product-image:hover .gallery-arrow {
+  opacity: 1;
+}
+
+.gallery-arrow.arrow-prev {
+  left: 12px;
+}
+
+.gallery-arrow.arrow-next {
+  right: 12px;
+}
+
+.gallery-arrow:hover {
+  background: #ffffff;
+  transform: translateY(-50%) scale(1.1);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.25);
+}
+
+/* Contador de Fotos (ej: 5 / 7) */
+.photo-counter-pill {
+  position: absolute;
+  bottom: 16px;
+  right: 16px;
+  background: rgba(18, 18, 20, 0.72);
+  backdrop-filter: blur(8px);
+  color: #ffffff;
+  font-size: 13px;
+  font-weight: 700;
+  padding: 5px 12px;
+  border-radius: 20px;
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.25);
+  letter-spacing: 0.04em;
+  z-index: 2;
+  pointer-events: none;
 }
 
 .zoom-indicator {
   position: absolute;
   bottom: 16px;
-  right: 16px;
+  left: 16px;
   display: inline-flex;
   align-items: center;
-  gap: 7px;
-  padding: 7px 13px;
-  background: rgba(18, 18, 20, 0.75);
+  gap: 6px;
+  padding: 6px 12px;
+  background: rgba(18, 18, 20, 0.72);
   backdrop-filter: blur(8px);
   color: #ffffff;
   border-radius: 20px;
   font-size: 12px;
   font-weight: 600;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.25);
   pointer-events: none;
   transition: all 0.2s ease;
   z-index: 2;
 }
 
 .product-image:hover .zoom-indicator {
-  background: rgba(18, 18, 20, 0.92);
-  transform: translateY(-2px);
-  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.35);
+  background: rgba(18, 18, 20, 0.88);
+  transform: translateY(-1px);
 }
 
 .product-image-badges {
   position: absolute;
-  top: 18px;
-  left: 18px;
+  top: 16px;
+  left: 16px;
   display: flex;
-  flex-direction: column;
+  align-items: center;
   gap: 8px;
   z-index: 2;
+}
+
+.stock-pill-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 12px;
+  font-size: 12px;
+  font-weight: 700;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.94);
+  color: #059669;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+  backdrop-filter: blur(4px);
+}
+
+.stock-pill-badge .stock-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #10b981;
+}
+
+.stock-pill-badge.out {
+  color: #dc2626;
+  background: rgba(254, 242, 242, 0.94);
+}
+
+.stock-pill-badge.out .stock-dot {
+  background: #ef4444;
 }
 
 .tag {
   display: inline-flex;
   align-items: center;
-  padding: 6px 12px;
-  font-size: 12px;
+  padding: 5px 10px;
+  font-size: 11.5px;
   font-weight: 700;
-  border-radius: 8px;
+  border-radius: 999px;
   color: var(--white);
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.15);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
 }
 
 .tag-discount {
@@ -466,53 +793,60 @@ onUnmounted(() => {
   letter-spacing: 0.02em;
 }
 
-.price-box {
+/* Carrusel de Miniaturas inferior */
+.thumbnails-wrapper {
+  position: relative;
+  width: 100%;
+}
+
+.thumbnails-track {
   display: flex;
   align-items: center;
-  flex-wrap: wrap;
-  gap: 12px;
+  gap: 10px;
+  overflow-x: auto;
+  scrollbar-width: none;
+  scroll-behavior: smooth;
+  padding: 4px 2px 8px;
 }
 
-.discount-pill {
-  display: inline-flex;
-  align-items: center;
-  padding: 4px 10px;
+.thumbnails-track::-webkit-scrollbar {
+  display: none;
+}
+
+.thumb-item {
+  flex: 0 0 72px;
+  width: 72px;
+  height: 72px;
+  border-radius: 10px;
+  overflow: hidden;
+  padding: 0;
+  background: #f8f8f8;
+  border: 2px solid transparent;
+  cursor: pointer;
+  transition: all 0.22s ease;
+  position: relative;
+}
+
+.thumb-item img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
   border-radius: 8px;
-  background: #fff0f3;
-  color: #c92a54;
-  font-size: 13px;
-  font-weight: 700;
-  border: 1px solid #fed7e2;
 }
 
-.category-promo-note {
-  margin-top: 6px;
-  padding: 8px 12px;
-  border-radius: 8px;
-  background: #fdf2f4;
-  color: #c92a54;
-  font-size: 12.5px;
-  border-left: 3px solid #e84a6f;
+.thumb-item:hover {
+  border-color: #d1d5db;
+  transform: translateY(-2px);
 }
 
-.stock-badge {
-  position: absolute;
-  top: 18px;
-  right: 18px;
-  padding: 6px 12px;
-  font-size: 12px;
-  font-weight: 600;
-  border-radius: 8px;
-  background: var(--white);
-  color: var(--green);
-  box-shadow: var(--shadow-sm);
+.thumb-item.active {
+  border-color: #111111;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.2);
+  transform: scale(1.05);
 }
 
-.stock-badge.out {
-  color: #c0392b;
-  background: #fbe9e9;
-}
-
+/* Información del Producto */
 .product-info {
   padding-top: 8px;
 }
@@ -529,8 +863,8 @@ onUnmounted(() => {
 .price-box {
   display: flex;
   align-items: center;
-  gap: 14px;
   flex-wrap: wrap;
+  gap: 12px;
 }
 
 .price {
@@ -544,6 +878,24 @@ onUnmounted(() => {
   font-size: 32px;
   font-weight: 600;
   color: var(--ink-900);
+}
+
+.price-old {
+  font-size: 18px;
+  color: var(--ink-400);
+  text-decoration: line-through;
+}
+
+.discount-pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 10px;
+  border-radius: 8px;
+  background: #fff0f3;
+  color: #c92a54;
+  font-size: 13px;
+  font-weight: 700;
+  border: 1px solid #fed7e2;
 }
 
 .price-bs-large {
@@ -571,23 +923,14 @@ onUnmounted(() => {
   font-weight: 500;
 }
 
-.subtotal-group {
-  display: flex;
-  align-items: baseline;
-  gap: 8px;
-  flex-wrap: wrap;
-}
-
-.subtotal-bs {
-  font-size: 14px;
-  font-weight: 600;
-  color: var(--rose-600);
-}
-
-.price-old {
-  font-size: 18px;
-  color: var(--ink-400);
-  text-decoration: line-through;
+.category-promo-note {
+  margin-top: 6px;
+  padding: 8px 12px;
+  border-radius: 8px;
+  background: #fdf2f4;
+  color: #c92a54;
+  font-size: 12.5px;
+  border-left: 3px solid #e84a6f;
 }
 
 .desc {
@@ -619,112 +962,101 @@ onUnmounted(() => {
 .qty-btn {
   width: 30px;
   height: 30px;
+  border: none;
+  background: #ffffff;
+  color: #111111;
   border-radius: 2px;
+  cursor: pointer;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  color: var(--ink-700);
-  background: transparent;
-  transition: background 0.2s ease, color 0.2s ease;
+  transition: background 0.15s ease;
 }
 
-.qty-btn:hover {
-  background: var(--rose-100);
-  color: var(--rose-700);
+.qty-btn:hover:not(:disabled) {
+  background: #f5f5f5;
 }
 
 .qty-btn:disabled {
-  opacity: 0.4;
+  opacity: 0.35;
   cursor: not-allowed;
-  background: transparent;
 }
 
 .qty-num {
-  min-width: 32px;
+  width: 34px;
   text-align: center;
+  font-size: 13.5px;
   font-weight: 600;
-  font-size: 16px;
+  color: #111111;
+}
+
+.subtotal-group {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  flex-wrap: wrap;
 }
 
 .subtotal {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--ink-700);
+}
+
+.subtotal-bs {
+  font-size: 14px;
   font-weight: 600;
   color: var(--rose-600);
 }
 
 .avail {
-  font-family: var(--font-body);
   font-size: 13px;
-  font-weight: 500;
-  color: #888888;
-  margin: -10px 0 22px;
+  color: var(--ink-400);
+  margin-bottom: 20px;
 }
 
 .buy-row {
   display: flex;
   gap: 14px;
+  margin-bottom: 26px;
   flex-wrap: wrap;
 }
 
-.btn:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-  transform: none;
+.buy-row .btn {
+  flex: 1;
+  min-width: 170px;
+  padding: 13px 20px;
 }
 
-.btn-whatsapp {
-  background: #111111;
-  color: #ffffff !important;
-  box-shadow: 0 8px 18px rgba(0, 0, 0, 0.25);
-  border: 1px solid #111111;
-  display: inline-flex;
+.features-mini {
+  display: flex;
+  gap: 26px;
+  margin-top: 30px;
+  flex-wrap: wrap;
+}
+
+.mini {
+  display: flex;
   align-items: center;
   gap: 8px;
-  font-weight: 600;
-  transition: all 0.2s ease;
+  font-size: 13px;
+  color: var(--ink-500);
 }
 
-.btn-whatsapp :deep(svg),
-.btn-whatsapp svg {
-  color: #ffffff !important;
-  fill: #ffffff !important;
+.mini svg {
+  color: var(--rose-500);
 }
 
-.btn-whatsapp:hover:not(:disabled) {
-  background: #282828;
-  border-color: #282828;
-  color: #ffffff !important;
-  transform: translateY(-2px);
-  box-shadow: 0 12px 22px rgba(0, 0, 0, 0.35);
-}
-
-.btn-whatsapp:disabled {
-  opacity: 0.45;
-  cursor: not-allowed;
-  transform: none;
-  box-shadow: none;
-}
-
-/* Zoom Modal / Lightbox */
+/* Lightbox / Zoom Modal */
 .zoom-backdrop {
   position: fixed;
   inset: 0;
-  z-index: 99999;
-  background: rgba(10, 10, 12, 0.92);
+  z-index: 9999;
+  background: rgba(10, 10, 14, 0.94);
   backdrop-filter: blur(12px);
   display: flex;
   flex-direction: column;
-  user-select: none;
-  outline: none;
-  animation: zoomFadeIn 0.2s ease forwards;
-}
-
-@keyframes zoomFadeIn {
-  from {
-    opacity: 0;
-  }
-  to {
-    opacity: 1;
-  }
+  justify-content: space-between;
 }
 
 .zoom-topbar {
@@ -733,18 +1065,22 @@ onUnmounted(() => {
   justify-content: space-between;
   padding: 16px 24px;
   background: linear-gradient(180deg, rgba(0, 0, 0, 0.7) 0%, transparent 100%);
-  z-index: 10;
   flex-shrink: 0;
+  z-index: 10;
 }
 
 .zoom-title {
-  color: #f8fafc;
-  font-size: 15px;
+  color: #ffffff;
   font-weight: 600;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  max-width: 50%;
+  font-size: 16px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.zoom-counter {
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.65);
 }
 
 .zoom-controls {
@@ -755,41 +1091,38 @@ onUnmounted(() => {
 
 .zoom-btn {
   background: rgba(255, 255, 255, 0.12);
+  border: 1px solid rgba(255, 255, 255, 0.2);
   color: #ffffff;
-  border: 1px solid rgba(255, 255, 255, 0.18);
-  border-radius: 8px;
-  padding: 7px 11px;
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
   transition: all 0.2s ease;
-  font-size: 13px;
-  font-weight: 600;
 }
 
 .zoom-btn:hover:not(:disabled) {
-  background: rgba(255, 255, 255, 0.24);
-  border-color: rgba(255, 255, 255, 0.35);
-  transform: translateY(-1px);
+  background: rgba(255, 255, 255, 0.25);
+  transform: scale(1.08);
 }
 
-.zoom-btn:disabled {
-  opacity: 0.35;
-  cursor: not-allowed;
+.zoom-btn.zoom-level {
+  width: auto;
+  padding: 0 12px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 600;
 }
 
 .zoom-btn.zoom-close {
-  background: rgba(239, 68, 68, 0.22);
-  border-color: rgba(239, 68, 68, 0.45);
-  color: #fca5a5;
-  padding: 7px 13px;
-  margin-left: 6px;
+  background: rgba(220, 38, 38, 0.8);
+  border-color: rgba(220, 38, 38, 0.9);
 }
 
 .zoom-btn.zoom-close:hover {
-  background: rgba(239, 68, 68, 0.4);
-  color: #ffffff;
+  background: #dc2626;
 }
 
 .zoom-viewport {
@@ -813,13 +1146,44 @@ onUnmounted(() => {
 
 .zoom-img {
   max-width: 88vw;
-  max-height: 78vh;
+  max-height: 76vh;
   object-fit: contain;
   border-radius: 10px;
   box-shadow: 0 20px 50px rgba(0, 0, 0, 0.65);
   pointer-events: auto;
   user-select: none;
   -webkit-user-drag: none;
+}
+
+.zoom-nav-btn {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.2);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  z-index: 10;
+}
+
+.zoom-nav-btn:hover {
+  background: rgba(255, 255, 255, 0.35);
+  transform: translateY(-50%) scale(1.1);
+}
+
+.zoom-nav-btn.prev {
+  left: 20px;
+}
+
+.zoom-nav-btn.next {
+  right: 20px;
 }
 
 .zoom-hint-bottom {
@@ -842,25 +1206,6 @@ onUnmounted(() => {
   opacity: 0;
 }
 
-.features-mini {
-  display: flex;
-  gap: 26px;
-  margin-top: 30px;
-  flex-wrap: wrap;
-}
-
-.mini {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 13px;
-  color: var(--ink-500);
-}
-
-.mini svg {
-  color: var(--rose-500);
-}
-
 .related {
   margin-top: 70px;
 }
@@ -878,10 +1223,20 @@ onUnmounted(() => {
 @media (max-width: 900px) {
   .product-layout {
     grid-template-columns: 1fr;
-    gap: 30px;
+    gap: 28px;
   }
-  .product-image img {
-    height: 380px;
+  .product-image {
+    max-height: 420px;
+  }
+  .gallery-arrow {
+    opacity: 0.9;
+    width: 36px;
+    height: 36px;
+  }
+  .thumb-item {
+    flex: 0 0 64px;
+    width: 64px;
+    height: 64px;
   }
   .related-grid {
     grid-template-columns: repeat(2, 1fr);
@@ -889,8 +1244,23 @@ onUnmounted(() => {
 }
 
 @media (max-width: 480px) {
+  .product-image {
+    max-height: 360px;
+    border-radius: var(--radius-md);
+  }
+  .thumb-item {
+    flex: 0 0 58px;
+    width: 58px;
+    height: 58px;
+  }
   .related-grid {
     grid-template-columns: 1fr;
+  }
+  .buy-row {
+    flex-direction: column;
+  }
+  .buy-row .btn {
+    width: 100%;
   }
 }
 </style>

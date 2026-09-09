@@ -71,7 +71,7 @@ const filteredProducts = computed(() => {
 
 async function remove(product) {
   if (!confirm(`¿Eliminar el producto "${product.name}"?`)) return
-  await deleteProduct(product.id)
+  await deleteProduct(product.id, product.image)
   await load()
 }
 </script>
