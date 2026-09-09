@@ -169,6 +169,38 @@ function moveImage(fromIdx, toIdx) {
   }
 }
 
+function sortOptionsByName() {
+  if (!form.value.images || form.value.images.length <= 1) return
+
+  // Sincronizar options si falta alguno
+  if (!form.value.options) form.value.options = []
+  while (form.value.options.length < form.value.images.length) {
+    const i = form.value.options.length
+    form.value.options.push({
+      id: `opt_${Date.now()}_${i}`,
+      name: `Opción ${i + 1}`,
+      image: form.value.images[i],
+      stock: 1,
+    })
+  }
+
+  // Emparejar cada opción con su imagen
+  const pairs = form.value.images.map((img, idx) => ({
+    image: img,
+    option: form.value.options[idx],
+  }))
+
+  // Ordenar de forma natural alfanumérica (Opción 1, Opción 2, Opción 10, etc.)
+  pairs.sort((a, b) => {
+    const nameA = (a.option?.name || '').trim()
+    const nameB = (b.option?.name || '').trim()
+    return nameA.localeCompare(nameB, undefined, { numeric: true, sensitivity: 'base' })
+  })
+
+  form.value.images = pairs.map((p) => p.image)
+  form.value.options = pairs.map((p) => p.option)
+}
+
 async function save() {
   saving.value = true
   const imgs = (form.value.images || []).filter(Boolean)
@@ -465,15 +497,29 @@ async function save() {
         <div class="options-title-block">
           <div class="options-title-line">
             <span class="options-icon">🎨</span>
-            <h3 class="options-main-title">Stock y nombre de cada opción</h3>
+            <h3 class="options-main-title">Stock y orden de cada opción</h3>
           </div>
           <p class="options-main-desc">
-            Asigna el nombre (ej. tono, color, modelo) y la cantidad que tienes disponible de cada foto:
+            El orden de estas tarjetas es <strong>el mismo orden en que aparecen en la tienda</strong> (#1 es la portada principal y sale seleccionada por defecto). Puedes cambiar el orden con los botones o pulsar <strong>Ordenar A-Z</strong>.
           </p>
         </div>
-        <div class="options-total-badge">
-          <span class="badge-label">Stock total:</span>
-          <strong class="badge-count">{{ totalOptionsStock }} unidades</strong>
+        <div class="options-header-actions">
+          <button
+            v-if="form.images.length > 1"
+            type="button"
+            class="btn-sort-options"
+            title="Ordenar opciones automáticamente por nombre (ej: Opción 1, 2, 3...)"
+            @click="sortOptionsByName"
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="m3 16 4 4 4-4"/><path d="M7 20V4"/><path d="m21 8-4-4-4 4"/><path d="M17 4v16"/>
+            </svg>
+            <span>Ordenar A-Z (1, 2, 3...)</span>
+          </button>
+          <div class="options-total-badge">
+            <span class="badge-label">Stock total:</span>
+            <strong class="badge-count">{{ totalOptionsStock }} unidades</strong>
+          </div>
         </div>
       </div>
 
@@ -491,7 +537,7 @@ async function save() {
             </div>
             <div class="card-header-meta">
               <div class="meta-tags-row">
-                <span v-if="idx === 0" class="tag-primary-badge">⭐ Portada</span>
+                <span v-if="idx === 0" class="tag-primary-badge">⭐ Portada (#1)</span>
                 <span v-if="(form.options[idx]?.stock || 0) <= 0" class="stock-pill-state out">
                   ✕ Agotado
                 </span>
@@ -502,6 +548,39 @@ async function save() {
               <span class="card-photo-name-preview">
                 {{ form.options[idx]?.name || `Opción ${idx + 1}` }}
               </span>
+            </div>
+
+            <!-- Botones directos para cambiar el orden de esta opción -->
+            <div class="card-order-controls">
+              <button
+                v-if="idx > 0"
+                type="button"
+                class="order-ctrl-btn"
+                title="Mover antes en la lista"
+                @click="moveImage(idx, idx - 1)"
+              >
+                <AppIcon name="chevronLeft" :size="12" />
+                <span class="btn-ctrl-label">Mover antes</span>
+              </button>
+              <button
+                v-if="idx < form.images.length - 1"
+                type="button"
+                class="order-ctrl-btn"
+                title="Mover después en la lista"
+                @click="moveImage(idx, idx + 1)"
+              >
+                <span class="btn-ctrl-label">Mover después</span>
+                <AppIcon name="chevronRight" :size="12" />
+              </button>
+              <button
+                v-if="idx > 0"
+                type="button"
+                class="order-ctrl-btn make-cover-btn"
+                title="Poner como la primera opción (#1 Portada)"
+                @click="setAsMain(idx)"
+              >
+                ⭐ Poner 1ª
+              </button>
             </div>
           </div>
 
@@ -754,6 +833,36 @@ async function save() {
   gap: 14px;
 }
 
+.options-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.btn-sort-options {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  background: #ffffff;
+  border: 1.5px solid #d1d5db;
+  color: #111827;
+  font-weight: 600;
+  font-size: 12.5px;
+  padding: 8px 14px;
+  border-radius: 999px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.btn-sort-options:hover {
+  background: #fdf2f8;
+  border-color: #ec4899;
+  color: #be185d;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(236, 72, 153, 0.15);
+}
+
 .options-title-line {
   display: flex;
   align-items: center;
@@ -911,6 +1020,60 @@ async function save() {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+.card-order-controls {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-left: auto;
+}
+
+.order-ctrl-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: #ffffff;
+  border: 1px solid #dcdfe4;
+  color: #374151;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 4px 8px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+}
+
+.order-ctrl-btn:hover {
+  background: #f3f4f6;
+  border-color: #9ca3af;
+  color: #111827;
+}
+
+.order-ctrl-btn.make-cover-btn {
+  background: #fffbeb;
+  border-color: #fcd34d;
+  color: #b45309;
+}
+
+.order-ctrl-btn.make-cover-btn:hover {
+  background: #fef3c7;
+  border-color: #f59e0b;
+  color: #78350f;
+}
+
+.btn-ctrl-label {
+  display: inline;
+}
+
+@media (max-width: 480px) {
+  .card-order-controls {
+    width: 100%;
+    margin-left: 0;
+    margin-top: 4px;
+  }
 }
 
 .card-inputs-area {
