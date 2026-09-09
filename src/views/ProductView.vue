@@ -508,7 +508,7 @@ onUnmounted(() => {
                 <div class="variant-card-footer">
                   <span class="variant-card-name" :title="opt.name">{{ opt.name }}</span>
                   <span v-if="(Number(opt.stock) || 0) <= 0" class="variant-card-status out">Agotado</span>
-                  <span v-else-if="Number(opt.stock) <= 3" class="variant-card-status low">{{ opt.stock }} disp.</span>
+                  <span v-else class="variant-card-status in">{{ opt.stock }} disp.</span>
                 </div>
               </button>
             </div>
@@ -1212,10 +1212,12 @@ onUnmounted(() => {
   color: #fca5a5;
 }
 
+.variant-card-status.in,
 .variant-card-status.low {
   color: #d97706;
 }
 
+.variant-card.active .variant-card-status.in,
 .variant-card.active .variant-card-status.low {
   color: #fde68a;
 }
