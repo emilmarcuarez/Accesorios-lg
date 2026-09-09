@@ -4,6 +4,7 @@ import { useCatalogStore } from '@/store/catalog'
 import { useCartStore } from '@/store/cart'
 import { useCurrencyStore } from '@/store/currency'
 import AppIcon from '@/components/AppIcon.vue'
+import ProductVariantModal from '@/components/ProductVariantModal.vue'
 import { formatPrice } from '@/utils/format'
 import { resolveImage } from '@/utils/image'
 
@@ -13,6 +14,19 @@ const currency = useCurrencyStore()
 const track = ref(null)
 
 const arrivals = computed(() => catalog.newArrivals)
+
+const showModal = ref(false)
+const selectedArrivalProduct = ref(null)
+
+function handleArrivalAdd(product) {
+  if (product.isMultiple && product.options && product.options.length) {
+    selectedArrivalProduct.value = product
+    showModal.value = true
+  } else {
+    const firstOpt = product.options && product.options.length ? product.options[0] : null
+    cart.add(product, 1, firstOpt)
+  }
+}
 
 function scrollBy(dir) {
   if (!track.value) return
@@ -69,16 +83,22 @@ onMounted(() => catalog.fetch())
             </div>
             <button
               class="mini-add"
-              :aria-label="product.hasOptions && product.options && product.options.length ? 'Ver opciones' : 'Agregar al carrito'"
-              @click="product.hasOptions && product.options && product.options.length ? $router.push(`/producto/${product.id}`) : cart.add(product)"
+              :aria-label="product.isMultiple && product.options && product.options.length ? 'Elegir variante' : 'Agregar al carrito'"
+              @click="handleArrivalAdd(product)"
             >
-              <AppIcon :name="product.hasOptions && product.options && product.options.length ? 'eye' : 'plus'" :size="16" />
+              <AppIcon name="plus" :size="16" />
             </button>
           </div>
         </article>
       </div>
       <p v-if="!arrivals.length" class="empty">Aún no hay novedades.</p>
     </div>
+
+    <!-- Modal de variantes para productos múltiples desde Novedades -->
+    <ProductVariantModal
+      v-model="showModal"
+      :product="selectedArrivalProduct"
+    />
   </section>
 </template>
 
