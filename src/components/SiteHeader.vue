@@ -532,6 +532,10 @@ function goFavorites() {
     margin: 0;
     max-width: none;
     flex: 1;
+    min-width: 0;
+  }
+  .search-mobile input {
+    min-width: 0;
   }
   .brand-mobile {
     flex: 0 0 auto;

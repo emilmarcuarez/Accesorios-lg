@@ -103,6 +103,7 @@ const values = [
   align-items: center;
   padding-top: 70px;
   padding-bottom: 70px;
+  overflow: hidden;
 }
 
 .about-img img {
@@ -155,6 +156,10 @@ const values = [
 @media (max-width: 800px) {
   .about-content {
     grid-template-columns: 1fr;
+  }
+  .about-img[data-aos],
+  .about-text[data-aos] {
+    transform: none !important;
   }
   .about-img img {
     height: 320px;

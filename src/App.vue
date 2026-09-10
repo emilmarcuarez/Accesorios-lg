@@ -24,6 +24,13 @@ const settings = useSettingsStore()
 const isAdminArea = computed(() => route.path.startsWith('/admin'))
 
 onMounted(async () => {
+  AOS.init({
+    duration: 750,
+    easing: 'ease-out-cubic',
+    once: true,
+    offset: 50,
+  })
+
   await settings.fetch()
   await auth.init()
   await router.isReady()
@@ -47,11 +54,8 @@ onMounted(async () => {
     ui.hide()
   }
 
-  AOS.init({
-    duration: 750,
-    easing: 'ease-out-cubic',
-    once: true,
-    offset: 50,
+  nextTick(() => {
+    AOS.refresh()
   })
 })
 
@@ -70,7 +74,7 @@ watch(
 watch(
   () => route.fullPath,
   () => {
-    window.scrollTo({ top: 0 })
+    window.scrollTo({ top: 0, left: 0 })
     setTimeout(() => {
       AOS.refreshHard()
     }, 120)

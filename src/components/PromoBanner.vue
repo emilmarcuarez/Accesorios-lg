@@ -50,6 +50,7 @@ onMounted(() => {
 .promos {
   padding: 55px 0;
   background: linear-gradient(180deg, rgba(255, 248, 250, 0) 0%, rgba(253, 237, 242, 0.65) 50%, rgba(255, 248, 250, 0) 100%);
+  overflow: hidden;
 }
 
 .promo-grid {
@@ -164,6 +165,9 @@ onMounted(() => {
   .promo-card {
     flex-direction: column;
     min-height: 0;
+  }
+  .promo-card[data-aos] {
+    transform: none !important;
   }
   .promo-copy {
     padding: 34px 30px;
