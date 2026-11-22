@@ -53,6 +53,8 @@ export const DEFAULT_ABOUT = {
   image: '/img/mujer.png',
 }
 
+let activeSettingsFetchPromise = null
+
 export const useSettingsStore = defineStore('settings', {
   state: () => ({
     lowStock: 5,
@@ -70,87 +72,97 @@ export const useSettingsStore = defineStore('settings', {
   actions: {
     async fetch(force = false) {
       if (this.loaded && !force) return
-      const [stockRes, bannersRes, storeRes, heroRes, registerBannerRes, topBarRes, aboutRes] = await Promise.all([
-        getSetting('low_stock_threshold'),
-        getSetting('home_promo_banners'),
-        getSetting('store_info'),
-        getSetting('home_hero'),
-        getSetting('home_register_banner'),
-        getSetting('site_top_bar'),
-        getSetting('about_page'),
-      ])
-
-      if (stockRes.data !== null && stockRes.data !== undefined && stockRes.data !== '') {
-        this.lowStock = Number(stockRes.data) || 5
+      if (activeSettingsFetchPromise && !force) {
+        return activeSettingsFetchPromise
       }
-
-      if (heroRes?.data) {
+      activeSettingsFetchPromise = (async () => {
         try {
-          const parsed = typeof heroRes.data === 'string' ? JSON.parse(heroRes.data) : heroRes.data
-          this.hero = { ...DEFAULT_HERO, ...parsed }
-        } catch {
-          this.hero = { ...DEFAULT_HERO }
-        }
-      }
+          const [stockRes, bannersRes, storeRes, heroRes, registerBannerRes, topBarRes, aboutRes] = await Promise.all([
+            getSetting('low_stock_threshold'),
+            getSetting('home_promo_banners'),
+            getSetting('store_info'),
+            getSetting('home_hero'),
+            getSetting('home_register_banner'),
+            getSetting('site_top_bar'),
+            getSetting('about_page'),
+          ])
 
-      if (bannersRes.data) {
-        try {
-          const parsed = typeof bannersRes.data === 'string' ? JSON.parse(bannersRes.data) : bannersRes.data
-          this.banners = {
-            banner1: { ...DEFAULT_BANNERS.banner1, ...(parsed?.banner1 || {}) },
-            banner2: { ...DEFAULT_BANNERS.banner2, ...(parsed?.banner2 || {}) },
+          if (stockRes.data !== null && stockRes.data !== undefined && stockRes.data !== '') {
+            this.lowStock = Number(stockRes.data) || 5
           }
-        } catch {
-          this.banners = {
-            banner1: { ...DEFAULT_BANNERS.banner1 },
-            banner2: { ...DEFAULT_BANNERS.banner2 },
+
+          if (heroRes?.data) {
+            try {
+              const parsed = typeof heroRes.data === 'string' ? JSON.parse(heroRes.data) : heroRes.data
+              this.hero = { ...DEFAULT_HERO, ...parsed }
+            } catch {
+              this.hero = { ...DEFAULT_HERO }
+            }
           }
-        }
-      }
 
-      if (storeRes.data) {
-        try {
-          const parsedStore = typeof storeRes.data === 'string' ? JSON.parse(storeRes.data) : storeRes.data
-          this.storeInfo = { ...DEFAULT_STORE, ...parsedStore }
-          updateStoreConfig(this.storeInfo)
-        } catch {
-          this.storeInfo = { ...DEFAULT_STORE }
-          updateStoreConfig(this.storeInfo)
-        }
-      }
-
-      if (registerBannerRes?.data) {
-        try {
-          const parsed = typeof registerBannerRes.data === 'string' ? JSON.parse(registerBannerRes.data) : registerBannerRes.data
-          this.registerBanner = { ...DEFAULT_REGISTER_BANNER, ...(parsed || {}) }
-        } catch {
-          this.registerBanner = { ...DEFAULT_REGISTER_BANNER }
-        }
-      }
-
-      if (topBarRes?.data) {
-        try {
-          const parsed = typeof topBarRes.data === 'string' ? JSON.parse(topBarRes.data) : topBarRes.data
-          this.topBar = {
-            ...DEFAULT_TOP_BAR,
-            ...(parsed || {}),
-            enabled: parsed?.enabled !== undefined ? Boolean(parsed.enabled) : true,
+          if (bannersRes.data) {
+            try {
+              const parsed = typeof bannersRes.data === 'string' ? JSON.parse(bannersRes.data) : bannersRes.data
+              this.banners = {
+                banner1: { ...DEFAULT_BANNERS.banner1, ...(parsed?.banner1 || {}) },
+                banner2: { ...DEFAULT_BANNERS.banner2, ...(parsed?.banner2 || {}) },
+              }
+            } catch {
+              this.banners = {
+                banner1: { ...DEFAULT_BANNERS.banner1 },
+                banner2: { ...DEFAULT_BANNERS.banner2 },
+              }
+            }
           }
-        } catch {
-          this.topBar = { ...DEFAULT_TOP_BAR }
-        }
-      }
 
-      if (aboutRes?.data) {
-        try {
-          const parsed = typeof aboutRes.data === 'string' ? JSON.parse(aboutRes.data) : aboutRes.data
-          this.about = { ...DEFAULT_ABOUT, ...(parsed || {}) }
-        } catch {
-          this.about = { ...DEFAULT_ABOUT }
-        }
-      }
+          if (storeRes.data) {
+            try {
+              const parsedStore = typeof storeRes.data === 'string' ? JSON.parse(storeRes.data) : storeRes.data
+              this.storeInfo = { ...DEFAULT_STORE, ...parsedStore }
+              updateStoreConfig(this.storeInfo)
+            } catch {
+              this.storeInfo = { ...DEFAULT_STORE }
+              updateStoreConfig(this.storeInfo)
+            }
+          }
 
-      this.loaded = true
+          if (registerBannerRes?.data) {
+            try {
+              const parsed = typeof registerBannerRes.data === 'string' ? JSON.parse(registerBannerRes.data) : registerBannerRes.data
+              this.registerBanner = { ...DEFAULT_REGISTER_BANNER, ...(parsed || {}) }
+            } catch {
+              this.registerBanner = { ...DEFAULT_REGISTER_BANNER }
+            }
+          }
+
+          if (topBarRes?.data) {
+            try {
+              const parsed = typeof topBarRes.data === 'string' ? JSON.parse(topBarRes.data) : topBarRes.data
+              this.topBar = {
+                ...DEFAULT_TOP_BAR,
+                ...(parsed || {}),
+                enabled: parsed?.enabled !== undefined ? Boolean(parsed.enabled) : true,
+              }
+            } catch {
+              this.topBar = { ...DEFAULT_TOP_BAR }
+            }
+          }
+
+          if (aboutRes?.data) {
+            try {
+              const parsed = typeof aboutRes.data === 'string' ? JSON.parse(aboutRes.data) : aboutRes.data
+              this.about = { ...DEFAULT_ABOUT, ...(parsed || {}) }
+            } catch {
+              this.about = { ...DEFAULT_ABOUT }
+            }
+          }
+
+          this.loaded = true
+        } finally {
+          activeSettingsFetchPromise = null
+        }
+      })()
+      return activeSettingsFetchPromise
     },
     async saveAbout(newAbout) {
       this.about = { ...this.about, ...newAbout }

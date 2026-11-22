@@ -31,27 +31,31 @@ onMounted(async () => {
     offset: 50,
   })
 
-  await settings.fetch()
-  await auth.init()
-  await router.isReady()
+  await Promise.all([
+    settings.fetch(),
+    auth.init(),
+    router.isReady(),
+  ])
+
   if (auth.isAuthenticated) {
-    await cart.loadSaved()
-    await favorites.load()
+    Promise.all([
+      cart.loadSaved(),
+      favorites.load(),
+    ])
   }
 
-  // Si estamos en la portada y hay video en el hero, esperamos a que cargue bien
   const isHome = route.path === '/'
   const hasHeroVideo = Boolean(settings.hero?.video && settings.hero.video.trim())
 
   if (isHome && hasHeroVideo) {
     ui.setWaitingForVideo(true)
-    // Timeout de seguridad de 6s para proteger la experiencia en conexiones lentas
+    ui.markAppReady()
     setTimeout(() => {
       ui.markVideoReady()
-    }, 6000)
+    }, 5000)
   } else {
     ui.setWaitingForVideo(false)
-    ui.hide()
+    ui.markAppReady()
   }
 
   nextTick(() => {

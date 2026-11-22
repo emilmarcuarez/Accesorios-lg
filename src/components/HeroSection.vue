@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import AppIcon from '@/components/AppIcon.vue'
 import { useSettingsStore, DEFAULT_HERO } from '@/store/settings'
 import { useUiStore } from '@/store/ui'
@@ -20,9 +20,15 @@ function onVideoError() {
   ui.markVideoReady()
 }
 
+watch(videoRef, (videoElement) => {
+  if (videoElement && videoElement.readyState >= 2) {
+    onVideoReady()
+  }
+})
+
 onMounted(() => {
   settings.fetch()
-  if (videoRef.value && videoRef.value.readyState >= 3) {
+  if (videoRef.value && videoRef.value.readyState >= 2) {
     onVideoReady()
   }
 })
