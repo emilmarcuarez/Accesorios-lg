@@ -441,7 +441,7 @@ onUnmounted(() => {
               :key="circle.id"
               type="button"
               class="circle-item"
-              :class="{ active: circle.active }"
+              :class="{ active: circle.active, 'is-sale-pulse': circle.id === 'offers' && circle.count > 0 }"
               @click="handleCircleClick(circle)"
             >
               <div class="circle-disk">
@@ -1247,6 +1247,49 @@ onUnmounted(() => {
 .circle-item.active .circle-label {
   color: #000000;
   font-weight: 700;
+}
+
+.circle-item.is-sale-pulse .circle-disk {
+  border-color: #111111;
+  border-width: 1.5px;
+  animation: saleDiskPulse 1.8s ease-in-out infinite;
+}
+
+.circle-item.is-sale-pulse .circle-badge-text {
+  animation: saleBadgeBlink 1.8s ease-in-out infinite;
+}
+
+.circle-item.is-sale-pulse .circle-label {
+  color: #111111;
+  font-weight: 700;
+}
+
+@keyframes saleDiskPulse {
+  0%, 100% {
+    transform: scale(1);
+    border-color: #111111;
+    background: #ffffff;
+    box-shadow: 0 0 0 0 rgba(217, 109, 139, 0.45);
+  }
+  50% {
+    transform: scale(1.06);
+    border-color: #c92a54;
+    background: #fff0f4;
+    box-shadow: 0 0 0 9px rgba(217, 109, 139, 0);
+  }
+}
+
+@keyframes saleBadgeBlink {
+  0%, 100% {
+    color: #111111;
+    transform: scale(1);
+    opacity: 1;
+  }
+  50% {
+    color: #c92a54;
+    transform: scale(1.08);
+    opacity: 0.8;
+  }
 }
 
 /* ==========================================================================
