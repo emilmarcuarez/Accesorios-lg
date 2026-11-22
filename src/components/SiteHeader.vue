@@ -187,8 +187,8 @@ function goFavorites() {
           <div class="brand">
             <img src="/img/logo.png" class="brand-logo" alt="Detallitos" />
           </div>
-          <button class="icon-btn" aria-label="Cerrar" @click="menuOpen = false">
-            <AppIcon name="close" :size="22" />
+          <button class="drawer-close-btn" aria-label="Cerrar" @click="menuOpen = false">
+            <AppIcon name="close" :size="20" />
           </button>
         </div>
 
@@ -207,16 +207,17 @@ function goFavorites() {
             class="drawer-link"
             @click="go(link.to)"
           >
-            {{ link.label }}
+            <span>{{ link.label }}</span>
+            <AppIcon name="chevronRight" :size="15" class="drawer-link-arrow" />
           </button>
         </nav>
         <div class="drawer-user-section">
-          <button class="drawer-user-btn" @click="goAccount">
-            <AppIcon name="user" :size="18" />
+          <button class="drawer-user-btn btn-account" @click="goAccount">
+            <AppIcon name="user" :size="17" />
             <span>{{ auth.isAuthenticated ? (auth.fullName || 'Mi Cuenta') : 'Mi Cuenta / Iniciar Sesión' }}</span>
           </button>
-          <button class="drawer-user-btn" @click="goFavorites">
-            <AppIcon name="heart" :size="18" />
+          <button class="drawer-user-btn btn-favorites" @click="goFavorites">
+            <AppIcon name="heart" :size="17" />
             <span>Favoritos {{ favorites.count ? `(${favorites.count})` : '' }}</span>
           </button>
         </div>
@@ -448,7 +449,8 @@ function goFavorites() {
 .menu-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(61, 42, 49, 0.4);
+  background: rgba(17, 17, 17, 0.55);
+  backdrop-filter: blur(2px);
   z-index: 60;
 }
 
@@ -457,35 +459,82 @@ function goFavorites() {
   top: 0;
   left: 0;
   height: 100%;
-  width: 300px;
+  width: 310px;
   max-width: 85%;
   background: var(--white);
   z-index: 70;
   padding: 24px;
-  box-shadow: var(--shadow-lg);
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.16);
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
 }
 
 .drawer-head {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding-bottom: 20px;
-  border-bottom: 1px solid var(--line);
+  padding-bottom: 18px;
+  border-bottom: 1px solid #f0f0f2;
+}
+
+.drawer-close-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: #f4f4f5;
+  color: #111111;
+  border: 1px solid #e4e4e7;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.drawer-close-btn:hover {
+  background: #111111;
+  color: #ffffff;
+  border-color: #111111;
 }
 
 .drawer-nav {
   display: flex;
   flex-direction: column;
-  margin-top: 20px;
+  margin-top: 14px;
 }
 
 .drawer-link {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: 15px 4px;
+  font-size: 14.5px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: #18181b;
+  border: none;
+  border-bottom: 1px solid #f2f2f4;
+  background: transparent;
   text-align: left;
-  padding: 16px 4px;
-  font-size: 16px;
-  font-weight: 500;
-  color: var(--ink-700);
-  border-bottom: 1px solid var(--line);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.drawer-link:hover {
+  color: #000000;
+  padding-left: 6px;
+}
+
+.drawer-link-arrow {
+  color: #a1a1aa;
+  transition: transform 0.2s ease, color 0.2s ease;
+}
+
+.drawer-link:hover .drawer-link-arrow {
+  color: #111111;
+  transform: translateX(3px);
 }
 
 .fade-enter-active,
@@ -515,7 +564,8 @@ function goFavorites() {
     top: 0;
     z-index: 40;
     background: #ffffff;
-    border-bottom: 1px solid rgba(234, 169, 187, 0.25);
+    border-bottom: 1px solid #eeeff2;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.03);
   }
   .mobile-inner {
     display: flex;
@@ -533,6 +583,15 @@ function goFavorites() {
     max-width: none;
     flex: 1;
     min-width: 0;
+    background: #f7f7f8;
+    border: 1px solid #e4e4e7;
+    border-radius: 4px;
+    padding: 8px 12px;
+  }
+  .search-mobile:focus-within {
+    border-color: #111111;
+    box-shadow: 0 0 0 1px #111111;
+    background: #ffffff;
   }
   .search-mobile input {
     min-width: 0;
@@ -548,7 +607,7 @@ function goFavorites() {
 }
 
 .drawer-user-section {
-  margin-top: 18px;
+  margin-top: 24px;
   display: flex;
   flex-direction: column;
   gap: 10px;
@@ -557,22 +616,41 @@ function goFavorites() {
 .drawer-user-btn {
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 12px 14px;
-  border-radius: 12px;
-  background: var(--rose-50);
-  color: var(--rose-600);
-  font-size: 14px;
+  justify-content: center;
+  gap: 10px;
+  width: 100%;
+  padding: 13px 16px;
+  border-radius: 6px;
+  font-size: 13.5px;
   font-weight: 600;
-  border: 1px solid var(--rose-200);
-  text-align: left;
+  letter-spacing: 0.02em;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: all 0.25s ease;
 }
 
-.drawer-user-btn:hover {
-  background: var(--rose-100);
-  transform: translateX(3px);
+.drawer-user-btn.btn-account {
+  background: #111111;
+  color: #ffffff;
+  border: 1.5px solid #111111;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
+}
+
+.drawer-user-btn.btn-account:hover {
+  background: #27272a;
+  border-color: #27272a;
+  transform: translateY(-1px);
+}
+
+.drawer-user-btn.btn-favorites {
+  background: #ffffff;
+  color: #111111;
+  border: 1.5px solid #111111;
+}
+
+.drawer-user-btn.btn-favorites:hover {
+  background: #111111;
+  color: #ffffff;
+  transform: translateY(-1px);
 }
 
 /* Indicador de Tasa BCV en barra negra */
@@ -613,28 +691,30 @@ function goFavorites() {
 }
 
 .drawer-rate-box {
-  margin: 12px 20px 0;
-  padding: 10px 14px;
-  background: #fff5f7;
-  border: 1px solid var(--rose-200, #f3c6d2);
-  border-radius: 12px;
+  margin: 18px 0 0;
+  padding: 12px 14px;
+  background: #111111;
+  border: 1px solid #27272a;
+  border-radius: 8px;
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 12px;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.08);
 }
 
 .drawer-rate-title {
   font-size: 10px;
   text-transform: uppercase;
-  letter-spacing: 0.5px;
-  font-weight: 700;
-  color: var(--rose-600);
+  letter-spacing: 0.08em;
+  font-weight: 600;
+  color: #a1a1aa;
 }
 
 .drawer-rate-sub {
-  font-size: 13px;
+  font-size: 13.5px;
   font-weight: 700;
-  color: var(--ink-900);
+  color: #ffffff;
+  letter-spacing: 0.02em;
 }
 
 @media (min-width: 901px) {
