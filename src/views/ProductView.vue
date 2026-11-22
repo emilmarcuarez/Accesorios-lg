@@ -515,11 +515,11 @@ onUnmounted(() => {
                   <span class="variant-card-name" :title="opt.name">{{ opt.name }}</span>
                   <template v-if="product.isMultiple">
                     <span v-if="(Number(opt.stock) || 0) <= 0" class="variant-card-status out">Agotado</span>
-                    <span v-else class="variant-card-status in">{{ opt.stock }} disp.</span>
+                    <span v-else class="variant-card-status in">Disponible</span>
                   </template>
                   <template v-else>
                     <span v-if="remainingStock <= 0" class="variant-card-status out">Agotado</span>
-                    <span v-else class="variant-card-status in">{{ remainingStock }} disp.</span>
+                    <span v-else class="variant-card-status in">Disponible</span>
                   </template>
                 </div>
               </button>
@@ -547,7 +547,7 @@ onUnmounted(() => {
           <div class="avail-row">
             <template v-if="product.isMultiple && selectedOption">
               <span v-if="remainingStock > 0" class="avail">
-                Stock disponible de <strong>{{ selectedOption.name }}</strong>: {{ remainingStock }}
+                Opción <strong>{{ selectedOption.name }}</strong> disponible
               </span>
               <span v-else class="avail out">
                 La opción <strong>{{ selectedOption.name }}</strong> está agotada temporalmente.
@@ -555,7 +555,7 @@ onUnmounted(() => {
             </template>
             <template v-else>
               <span class="avail" :class="{ out: remainingStock <= 0 }">
-                Stock disponible: {{ remainingStock }}
+                {{ remainingStock > 0 ? 'Producto disponible' : 'Agotado temporalmente' }}
               </span>
             </template>
           </div>

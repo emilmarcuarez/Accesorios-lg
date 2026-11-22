@@ -2,7 +2,6 @@
 import { ref, computed } from 'vue'
 import { useCartStore } from '@/store/cart'
 import { useFavoritesStore } from '@/store/favorites'
-import { useSettingsStore } from '@/store/settings'
 import { useCurrencyStore } from '@/store/currency'
 import AppIcon from '@/components/AppIcon.vue'
 import ProductVariantModal from '@/components/ProductVariantModal.vue'
@@ -15,10 +14,7 @@ const props = defineProps({
 
 const cart = useCartStore()
 const favorites = useFavoritesStore()
-const settings = useSettingsStore()
 const currency = useCurrencyStore()
-
-settings.fetch()
 
 const remainingStock = computed(() => {
   const inCart = (cart.items || []).find((it) => it.id === props.product.id)?.qty || 0
@@ -74,7 +70,6 @@ function handleAddIndividual() {
           {{ product.options.length }} opciones
         </span>
         <span v-if="product.stock === 0" class="tag tag-soldout">Agotado</span>
-        <span v-else-if="product.stock <= settings.lowStock" class="tag tag-low">Últimas {{ product.stock }}</span>
       </div>
       <button
         class="fav"
@@ -106,11 +101,6 @@ function handleAddIndividual() {
         <span v-if="product.discount" class="discount-badge">-{{ product.discount }}%</span>
       </div>
 
-      <div class="card-stock">
-        <span class="stock-simple">Stock: {{ remainingStock }}</span>
-      </div>
-
-      <!-- Botón para Producto Múltiple (abre Popup de selección rápida) -->
       <button
         v-if="product.isMultiple && product.options && product.options.length"
         class="btn add-btn btn-choose-opt"
@@ -270,12 +260,6 @@ function handleAddIndividual() {
   color: #777777;
 }
 
-.tag-low {
-  background: #fdf6ec;
-  border: 1px solid #d4a373;
-  color: #8c5b23;
-}
-
 .btn-choose-opt {
   background: #111111;
   color: #ffffff;
@@ -400,20 +384,6 @@ function handleAddIndividual() {
   color: var(--rose-600);
   letter-spacing: 0.01em;
   line-height: 1.2;
-}
-
-.card-stock {
-  display: flex;
-  align-items: center;
-  margin: 2px 0 6px;
-}
-
-.stock-simple {
-  font-family: var(--font-body);
-  font-size: 11.5px;
-  font-weight: 500;
-  color: #888888;
-  letter-spacing: 0.02em;
 }
 
 .add-btn {

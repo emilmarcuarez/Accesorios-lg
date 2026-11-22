@@ -264,7 +264,7 @@ onUnmounted(() => {
                       v-else
                       class="quick-stock-badge in"
                     >
-                      ● {{ modalOptStock }} disp.
+                      ● En stock
                     </span>
                   </div>
                   <div class="quick-price-line">
@@ -321,7 +321,7 @@ onUnmounted(() => {
                     </div>
                     <span class="quick-opt-name" :title="opt.name">{{ opt.name }}</span>
                     <span v-if="getOptionRemaining(opt) <= 0" class="quick-opt-status out">Agotado</span>
-                    <span v-else class="quick-opt-status in">{{ getOptionRemaining(opt) }} disp.</span>
+                    <span v-else class="quick-opt-status in">Disponible</span>
                   </button>
                 </div>
               </div>
@@ -330,7 +330,7 @@ onUnmounted(() => {
               <div class="quick-qty-section">
                 <div class="quick-qty-label-box">
                   <label class="quick-section-title">Cantidad</label>
-                  <span class="quick-qty-limit-note">Máx: {{ modalOptStock }} unid.</span>
+                  <span v-if="modalQty >= modalOptStock && modalOptStock > 0" class="quick-qty-limit-note">Límite alcanzado</span>
                 </div>
                 <div class="quick-qty-right">
                   <div class="quick-qty-stepper">

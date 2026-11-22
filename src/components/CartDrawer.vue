@@ -93,11 +93,6 @@ async function applyCoupon() {
               Bs. {{ currency.formatBsNum(item.price * item.qty) }}
             </div>
 
-            <!-- Mostrar cuántas quedan en stock de forma dinámica -->
-            <div class="cart-item-stock-row">
-              <span class="cart-stock-simple">Stock disponible: {{ getRemainingStock(item) }}</span>
-            </div>
-
             <div class="qty">
               <button class="qty-btn" aria-label="Menos" @click="cart.decrease(item.itemKey || item.id)">
                 <AppIcon name="minus" :size="14" />
@@ -365,20 +360,6 @@ async function applyCoupon() {
   padding: 2px 6px;
   border-radius: 2px;
   letter-spacing: 0.04em;
-}
-
-.cart-item-stock-row {
-  margin: 4px 0 8px;
-  display: flex;
-  align-items: center;
-}
-
-.cart-stock-simple {
-  font-family: var(--font-body);
-  font-size: 11.5px;
-  font-weight: 500;
-  color: #888888;
-  letter-spacing: 0.02em;
 }
 
 .max-stock-notice {

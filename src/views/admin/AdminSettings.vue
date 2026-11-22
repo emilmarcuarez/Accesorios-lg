@@ -323,7 +323,7 @@ async function save() {
           <div class="card-icon"><AppIcon name="shield" :size="20" /></div>
           <div>
             <h2 class="card-title">Alertas de Inventario</h2>
-            <p class="card-desc">Configuración de avisos de stock bajo en la tienda y dashboard.</p>
+            <p class="card-desc">Configuración de avisos de stock bajo en el panel y dashboard.</p>
           </div>
         </div>
 
@@ -336,8 +336,7 @@ async function save() {
             class="field-input"
           />
           <p class="field-hint">
-            Cuando un producto tenga esta cantidad o menos, aparecerá la etiqueta
-            <span class="chip">Últimas {{ lowStock }}</span> en su tarjeta y la alerta en el Dashboard.
+            Cuando un producto tenga esta cantidad o menos, aparecerá la alerta de bajo stock en el Dashboard y en la lista de productos del panel administrativo.
           </p>
         </div>
       </div>
