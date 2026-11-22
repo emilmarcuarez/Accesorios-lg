@@ -192,6 +192,14 @@ function goFavorites() {
           </button>
         </div>
 
+        <div v-if="currency.effectiveRate" class="drawer-rate-box">
+          <span class="rate-live-dot"></span>
+          <div>
+            <div class="drawer-rate-title">Tasa Oficial BCV</div>
+            <div class="drawer-rate-sub">{{ currency.rateText }}</div>
+          </div>
+        </div>
+
         <nav class="drawer-nav">
           <button
             v-for="link in navLinks"
@@ -476,7 +484,7 @@ function goFavorites() {
   justify-content: center;
   width: 36px;
   height: 36px;
-  border-radius: 50%;
+  border-radius: 0;
   background: #f4f4f5;
   color: #111111;
   border: 1px solid #e4e4e7;
@@ -577,7 +585,7 @@ function goFavorites() {
     min-width: 0;
     background: #f7f7f8;
     border: 1px solid #e4e4e7;
-    border-radius: 4px;
+    border-radius: 0;
     padding: 8px 12px;
   }
   .search-mobile:focus-within {
@@ -596,6 +604,36 @@ function goFavorites() {
     align-items: center;
     gap: 4px;
   }
+  .mobile-bar .icon-btn {
+    border-radius: 0;
+  }
+}
+
+.drawer-rate-box {
+  margin: 18px 0 0;
+  padding: 12px 14px;
+  background: #111111;
+  border: 1px solid #27272a;
+  border-radius: 0;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.08);
+}
+
+.drawer-rate-title {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-weight: 600;
+  color: #a1a1aa;
+}
+
+.drawer-rate-sub {
+  font-size: 13.5px;
+  font-weight: 700;
+  color: #ffffff;
+  letter-spacing: 0.02em;
 }
 
 .drawer-user-section {
@@ -612,7 +650,7 @@ function goFavorites() {
   gap: 10px;
   width: 100%;
   padding: 13px 16px;
-  border-radius: 6px;
+  border-radius: 0;
   font-size: 13.5px;
   font-weight: 600;
   letter-spacing: 0.02em;
@@ -653,7 +691,7 @@ function goFavorites() {
   background: rgba(255, 255, 255, 0.16);
   border: 1px solid rgba(255, 255, 255, 0.28);
   padding: 3px 10px;
-  border-radius: 2px;
+  border-radius: 0;
   font-size: 12px;
   font-weight: 500;
   backdrop-filter: blur(4px);
