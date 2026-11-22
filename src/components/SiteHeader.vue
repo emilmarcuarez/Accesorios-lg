@@ -612,27 +612,26 @@ function goFavorites() {
 .drawer-rate-box {
   margin: 18px 0 0;
   padding: 12px 14px;
-  background: #111111;
-  border: 1px solid #27272a;
+  background: #ffffff;
+  border: 1.5px solid #111111;
   border-radius: 0;
   display: flex;
   align-items: center;
   gap: 12px;
-  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.08);
 }
 
 .drawer-rate-title {
   font-size: 10px;
   text-transform: uppercase;
   letter-spacing: 0.08em;
-  font-weight: 600;
-  color: #a1a1aa;
+  font-weight: 700;
+  color: #666666;
 }
 
 .drawer-rate-sub {
   font-size: 13.5px;
   font-weight: 700;
-  color: #ffffff;
+  color: #111111;
   letter-spacing: 0.02em;
 }
 
