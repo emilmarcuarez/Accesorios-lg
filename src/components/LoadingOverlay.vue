@@ -49,19 +49,16 @@ const ui = useUiStore()
   align-items: center;
   justify-content: center;
   background: #ffffff;
-  box-shadow: 0 16px 40px rgba(217, 109, 139, 0.2), 0 2px 12px rgba(0, 0, 0, 0.04);
+  box-shadow: 0 10px 30px rgba(217, 109, 139, 0.12), 0 2px 8px rgba(0, 0, 0, 0.02);
 }
 
 .spinner-ring {
   position: absolute;
-  inset: -4px;
+  inset: -3px;
   border-radius: 50%;
-  border: 3px solid transparent;
-  border-top-color: #111111;
-  border-right-color: #e2829c;
-  border-bottom-color: transparent;
-  border-left-color: #e2829c;
-  animation: spin 1.1s cubic-bezier(0.55, 0.15, 0.45, 0.85) infinite;
+  border: 2px solid rgba(226, 130, 156, 0.16);
+  border-top-color: #d96d8b;
+  animation: spin 1s linear infinite;
 }
 
 .spinner-core {

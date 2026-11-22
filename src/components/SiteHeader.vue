@@ -192,14 +192,6 @@ function goFavorites() {
           </button>
         </div>
 
-        <div v-if="currency.effectiveRate" class="drawer-rate-box">
-          <span class="rate-live-dot"></span>
-          <div>
-            <div class="drawer-rate-title">Tasa Oficial BCV</div>
-            <div class="drawer-rate-sub">{{ currency.rateText }}</div>
-          </div>
-        </div>
-
         <nav class="drawer-nav">
           <button
             v-for="link in navLinks"
@@ -688,33 +680,6 @@ function goFavorites() {
   0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7); }
   70% { transform: scale(1); box-shadow: 0 0 0 4px rgba(16, 185, 129, 0); }
   100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
-}
-
-.drawer-rate-box {
-  margin: 18px 0 0;
-  padding: 12px 14px;
-  background: #111111;
-  border: 1px solid #27272a;
-  border-radius: 8px;
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.08);
-}
-
-.drawer-rate-title {
-  font-size: 10px;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  font-weight: 600;
-  color: #a1a1aa;
-}
-
-.drawer-rate-sub {
-  font-size: 13.5px;
-  font-weight: 700;
-  color: #ffffff;
-  letter-spacing: 0.02em;
 }
 
 @media (min-width: 901px) {
